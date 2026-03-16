@@ -1,0 +1,39 @@
+<fulfillmentToken fulfillmentType="loan" auth="user" xmlns="http://ns.adobe.com/adept">
+  <distributor>urn:uuid:9cb786e8-586a-4950-8901-fff8d2ee6025</distributor>
+  <operatorURL>https://acs.ebookcentral.proquest.com/fulfillment</operatorURL>
+  <transaction>6903917_548284081</transaction>
+  <purchase>2026-03-22T09:22:00+00:00</purchase>
+  <expiration>2026-03-22T15:22:00+00:00</expiration>
+  <resourceItemInfo>
+    <resource>urn:uuid:e0000000-0000-0000-0000-000006903917</resource>
+    <resourceItem>0</resourceItem>
+    <metadata>
+      <dc:title xmlns:dc="http://purl.org/dc/elements/1.1/">Python Concurrency with Asyncio</dc:title>
+      <dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">Fowler, Matthew;</dc:creator>
+      <dc:publisher xmlns:dc="http://purl.org/dc/elements/1.1/">Manning Publications Co. LLC</dc:publisher>
+      <dc:identifier xmlns:dc="http://purl.org/dc/elements/1.1/">6903917</dc:identifier>
+      <dc:format xmlns:dc="http://purl.org/dc/elements/1.1/">application/epub+zip</dc:format>
+      <dc:language xmlns:dc="http://purl.org/dc/elements/1.1/">en</dc:language>
+    </metadata>
+    <licenseToken>
+      <resource>urn:uuid:e0000000-0000-0000-0000-000006903917</resource>
+      <permissions>
+        <display>
+          <duration>604799</duration>
+        </display>
+        <excerpt>
+          <duration>604799</duration>
+          <count initial="16" max="16" incrementInterval="37799"/>
+        </excerpt>
+        <print>
+          <duration>604799</duration>
+          <count initial="16" max="16" incrementInterval="37799"/>
+        </print>
+        <play>
+          <duration>604799</duration>
+        </play>
+      </permissions>
+    </licenseToken>
+  </resourceItemInfo>
+  <hmac>7olMRkyae7hgP9Jrk/DKIAgkydE=</hmac>
+</fulfillmentToken>
