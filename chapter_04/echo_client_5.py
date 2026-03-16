@@ -4,9 +4,8 @@ import sys
 from util import async_timed
 
 # Versió amb wait i timeout=3
-# asyncio.wait retorna dos conjunts: (done, pending)
-# A diferència de gather i as_completed, wait NO cancel·la les tasques pendents quan expira el timeout.
-# El programador ha de decidir explícitament si reprendre-les o cancel·lar-les.
+# asyncio.wait retorna done o pending per tant si hi ha una tasca pendent pel timeout no apareix un error pero done o pending
+# Per tant com hem vist a clase el programador ha de decidir si reprendre o cancel·lar les tasques
 
 @async_timed()
 async def envia(loop: asyncio.AbstractEventLoop, sock: socket.socket, missatge: str) -> None:
@@ -38,9 +37,7 @@ async def main():
     envia_t = asyncio.create_task(envia(loop, sock, missatge))
     rep_t = asyncio.create_task(rep(loop, sock, len(missatge)))
 
-    # wait retorna (done, pending) quan expira el timeout o acaben totes les tasques
-    # timeout=3: entre el 1r retard (2s) i la suma (4s)
-    # → rep acaba a ~2s (done), envia no acaba a temps (pending)
+    
     done, pending = await asyncio.wait([envia_t, rep_t], timeout=3)
 
     print(f'Nombre de tasques acabades: {len(done)}')
@@ -49,7 +46,7 @@ async def main():
     for t in done:
         print(f'Resultat de la tasca {t}: {t.result()}')
 
-    # Les tasques pendents es cancel·len explícitament (wait no ho fa automàticament)
+    # Les tasques pendents es cancelen explicitament (wait no ho fa automàticament)
     for t in pending:
         t.cancel()
 
