@@ -147,6 +147,37 @@ INSERT INTO product_size VALUES(3, 'Large');
 - `IF NOT EXISTS`: Evita errores si la tabla ya existe al volver a ejecutar el script.
 - Las claves foráneas (`FOREIGN KEY ... REFERENCES`) garantizan la integridad referencial.
 
+### ¿Qué es una Foreign Key (Clave Foránea)?
+
+Una **foreign key** (clave foránea) es una columna (o conjunto de columnas) en una tabla que **referencia la clave primaria de otra tabla**. Su función es establecer y garantizar un vínculo entre los datos de ambas tablas, de modo que no pueda existir un valor en la columna foránea que no exista previamente en la tabla referenciada.
+
+**Ejemplo del esquema anterior:**
+
+```sql
+product_id INT NOT NULL,
+FOREIGN KEY (product_id) REFERENCES product(product_id)
+```
+
+Aquí, `sku.product_id` es una clave foránea que apunta a `product.product_id`. Esto significa que no se puede insertar un `sku` con un `product_id` que no exista en la tabla `product` — PostgreSQL lo rechazaría con un error de integridad referencial.
+
+**Beneficios principales:**
+- **Integridad referencial**: impide datos huérfanos (ej. un `sku` apuntando a un producto inexistente).
+- **Consistencia**: si se intenta borrar un `product` referenciado por algún `sku`, la base de datos lo bloquea (salvo que se use `ON DELETE CASCADE`).
+- **Documentación del modelo**: las FK hacen explícita la estructura de relaciones entre entidades.
+
+### Tipos de Relaciones en SQL
+
+Las relaciones entre tablas se clasifican según cuántos registros de una tabla pueden relacionarse con cuántos de la otra:
+
+| Tipo de Relación | Descripción | Ejemplo en el esquema |
+|---|---|---|
+| **Uno a Uno** (1:1) | Un registro de la tabla A se relaciona con exactamente un registro de la tabla B, y viceversa. | Un usuario con exactamente un perfil de configuración. |
+| **Uno a Muchos** (1:N) | Un registro de la tabla A puede relacionarse con muchos registros de la tabla B, pero cada registro de B apunta a uno solo de A. | Una `brand` puede tener muchos `product`, pero cada `product` pertenece a una sola `brand`. |
+| **Muchos a Uno** (N:1) | Inverso del anterior (es la misma relación vista desde el lado "muchos"). | Muchos `product` pertenecen a una sola `brand`. |
+| **Muchos a Muchos** (N:M) | Un registro de A puede relacionarse con muchos de B, y un registro de B puede relacionarse con muchos de A. Requiere una **tabla intermedia** (pivot/junction table). | Un `product` puede tener muchos colores, y un color puede aparecer en muchos productos → tabla `sku` actúa como tabla intermedia. |
+
+> **Nota:** En el esquema del capítulo, la tabla `sku` es en realidad una **tabla intermedia** que resuelve una relación Muchos a Muchos entre `product`, `product_color` y `product_size`, añadiendo además su propio identificador (`sku_id`).
+
 ***
 
 ## 5.4 — Ejecutando Consultas con asyncpg
