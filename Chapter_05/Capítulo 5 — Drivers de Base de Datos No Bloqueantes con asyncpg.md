@@ -65,6 +65,12 @@ async def main():
 asyncio.run(main())
 ```
 
+**Salida esperada:**
+```
+Connected! Postgres version is ServerVersion(major=14, minor=5, micro=0, releaselevel='final', serial=0)
+```
+> La versión exacta depende de la instalación de PostgreSQL. El objeto `ServerVersion` muestra los campos `major`, `minor`, `micro`, `releaselevel` y `serial`.
+
 **Explicación línea a línea:**
 
 | Instrucción | Qué hace |
@@ -224,6 +230,20 @@ async def main():
 asyncio.run(main())
 ```
 
+**Salida esperada:**
+```
+Creating the product database...
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+INSERT 0 3
+INSERT 0 2
+Finished creating the product database!
+```
+> Cada línea intermedia es el string de estado que PostgreSQL devuelve a `connection.execute()`: `CREATE TABLE` para cada `CREATE TABLE IF NOT EXISTS`, e `INSERT 0 N` donde N es el número de filas insertadas.
+
 **Explicación clave:** Las sentencias se ejecutan **una por una en secuencia** dentro del bucle `for` (gracias al `await`). Esto es correcto en este caso porque algunas tablas dependen de otras (hay claves foráneas), por lo que no se pueden crear en paralelo.[^1]
 
 **¿Por qué el orden importa?**
@@ -342,6 +362,12 @@ async def main():
 asyncio.run(main())
 ```
 
+**Salida esperada:**
+```
+(sin salida en consola)
+```
+> `connection.executemany()` no imprime nada ni devuelve filas. La confirmación de que los datos se insertaron correctamente se obtendría haciendo un `SELECT COUNT(*) FROM brand` en PostgreSQL tras ejecutar el script.
+
 ### 5.5.2 — Creando un Pool de Conexiones
 
 Un **pool de conexiones** es una caché de conexiones ya establecidas a la base de datos, reutilizables para distintas consultas. Su objetivo es evitar el coste de crear nuevas conexiones para cada operación (establecer una conexión TCP es caro en tiempo).[^3][^1]
@@ -389,6 +415,15 @@ async def main():
 
 asyncio.run(main())
 ```
+
+**Salida esperada:**
+```
+(sin salida en consola)
+```
+> El script no imprime nada: `query_product()` devuelve un `Record` con los datos del producto 100, pero no hay ningún `print`. Para ver el resultado habría que añadir `print(await query_product(pool))`. El Record tendría esta forma:
+> ```
+> <Record product_id=100 product_name='some product' brand_id=5 sku_id=342 product_color_name='Blue' product_size_name='Medium'>
+> ```
 
 **Explicación detallada:**
 
@@ -473,6 +508,12 @@ async def main():
 asyncio.run(main())
 ```
 
+**Salida esperada:**
+```
+[<Record brand_name='brand_1'>, <Record brand_name='brand_2'>]
+```
+> `connection.fetch()` devuelve una lista de objetos `Record`. Cada `Record` se muestra con sus campos al hacer `print`. Las dos marcas aparecen porque la transacción se completó sin errores y se hizo `COMMIT` automáticamente.
+
 **Comportamiento del gestor de contexto `connection.transaction()`:**
 - Al entrar en el bloque `async with`: emite `BEGIN` a PostgreSQL.
 - Si el bloque termina sin excepciones: emite `COMMIT`.
@@ -540,6 +581,13 @@ async def main():
 asyncio.run(main())
 ```
 
+**Salida esperada:**
+```
+WARNING:root:Ignoring error inserting product color
+asyncpg.exceptions.UniqueViolationError: duplicate key value violates unique constraint "product_color_pkey"
+```
+> El `INSERT INTO brand` externo tiene éxito y queda persistido. El `INSERT INTO product_color` interno falla (el id=1 ya existe), pero la excepción es capturada y solo se loguea como `WARNING`. No se imprime nada más porque no hay ningún `print` de confirmación tras el bloque.
+
 **Mecanismo:**
 - El `INSERT INTO brand` externo tiene éxito.
 - El `INSERT INTO product_color` interno falla (el color con id=1 ya existe).
@@ -582,6 +630,19 @@ async def main():
 
 asyncio.run(main())
 ```
+
+**Salida esperada (si no hay errores):**
+```
+No errors, committing transaction!
+[<Record brand_name='brand_1'>, <Record brand_name='brand_2'>]
+```
+
+**Salida esperada (si hay un error, ej. clave duplicada):**
+```
+Errors, rolling back transaction!
+[]
+```
+> En el camino de error, el `print(brands)` devuelve una lista vacía porque el `ROLLBACK` deshizo ambos `INSERT`. En el camino feliz, las dos marcas aparecen persistidas.
 
 **Comparativa de enfoques para transacciones:**
 
@@ -660,6 +721,16 @@ async def main():
 
 asyncio.run(main())
 ```
+
+**Salida esperada:**
+```
+Product: 1 - running
+Product: 2 - here
+Product: 3 - place
+...
+Product: 1000 - word
+```
+> Los nombres de productos son los generados aleatoriamente al insertar los datos de prueba (Listing 5.5). Lo importante es que las filas aparecen **de una en una** a medida que el generador las emite, sin esperar a que todas estén en memoria.
 
 **Explicación del flujo:**
 
