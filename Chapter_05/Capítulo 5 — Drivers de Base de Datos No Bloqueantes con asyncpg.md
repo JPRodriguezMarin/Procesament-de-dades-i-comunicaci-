@@ -332,6 +332,47 @@ await connection.executemany(insert_query, brands)
 
 `executemany` acepta una sentencia SQL parametrizada y una lista de tuplas. Ejecuta la sentencia una vez por cada tupla. La parametrización previene inyecciones SQL al sanitizar los valores de entrada.[^1]
 
+**¿Qué significa `$1`?**
+
+`$1` es un **marcador de posición** (placeholder): le dice a asyncpg *"aquí irá el primer valor que me pases"*. Los números indican la posición del valor dentro de la tupla:
+
+```python
+insert_query = "INSERT INTO product VALUES(DEFAULT, $1, $2)"
+#                                                   ↑   ↑
+#                                             nombre  brand_id
+
+await connection.execute(insert_query, 'Camiseta', 3)
+# $1 → 'Camiseta'
+# $2 → 3
+```
+
+Con `executemany`, asyncpg sustituye los placeholders por cada tupla de la lista, ejecutando la sentencia una vez por fila:
+
+```
+INSERT INTO brand VALUES(DEFAULT, 'Nike')   -- $1 = 'Nike'
+INSERT INTO brand VALUES(DEFAULT, 'Adidas') -- $1 = 'Adidas'
+INSERT INTO brand VALUES(DEFAULT, 'Puma')   -- $1 = 'Puma'
+```
+
+> **¿Por qué `('Nike',)` con coma al final?** Es la sintaxis de Python para crear una tupla de un solo elemento. Sin la coma, `('Nike')` sería simplemente un string entre paréntesis, no una tupla.
+
+**¿Por qué no escribir los valores directamente en el string?**
+
+| Enfoque | Problema |
+|---|---|
+| `f"INSERT INTO brand VALUES(DEFAULT, '{nombre}')"` | **SQL injection**: si `nombre` contiene `'; DROP TABLE brand; --`, se ejecutaría código malicioso. |
+| `$1` con asyncpg | asyncpg sanitiza el valor automáticamente antes de enviarlo a PostgreSQL. Seguro y eficiente. |
+
+**Comparativa de sintaxis entre drivers:**
+
+| Driver | Sintaxis de placeholder |
+|---|---|
+| asyncpg (PostgreSQL) | `$1, $2, $3` |
+| sqlite3 (Python stdlib) | `?, ?, ?` |
+| psycopg2 (PostgreSQL) | `%s, %s, %s` |
+
+asyncpg usa la notación nativa de PostgreSQL, que permite incluso reutilizar el mismo parámetro varias veces: `WHERE id = $1 OR parent_id = $1`.
+
 ### Listing 5.5 — Insertar marcas aleatorias
 
 ```python
