@@ -226,6 +226,27 @@ asyncio.run(main())
 
 **Explicación clave:** Las sentencias se ejecutan **una por una en secuencia** dentro del bucle `for` (gracias al `await`). Esto es correcto en este caso porque algunas tablas dependen de otras (hay claves foráneas), por lo que no se pueden crear en paralelo.[^1]
 
+**¿Por qué el orden importa?**
+
+El orden de la lista `statements` no es arbitrario — está dictado por las **dependencias entre tablas a través de las claves foráneas**. PostgreSQL valida en el momento de crear cada tabla que las tablas a las que referencia ya existan. Si se intentara crear `product` antes que `brand`, PostgreSQL devolvería un error porque la FK `FOREIGN KEY (brand_id) REFERENCES brand(brand_id)` apuntaría a una tabla inexistente.
+
+El orden correcto es:
+1. `brand` — sin dependencias, se crea primero.
+2. `product` — depende de `brand`.
+3. `product_color` y `product_size` — sin dependencias entre sí.
+4. `sku` — depende de `product`, `product_color` y `product_size`, por lo que va al final.
+5. Los `INSERT` van después de que todas las tablas ya existen.
+
+**¿Por qué se usa asyncio si se ejecuta en secuencia?**
+
+Puede parecer contradictorio usar asyncio (diseñado para concurrencia) si al final se ejecuta todo en orden. La razón es que **asyncio no bloquea el hilo de Python mientras espera la respuesta de PostgreSQL**. Cada `await connection.execute(statement)` le dice a Python: *"envía esta sentencia a la base de datos y, mientras PostgreSQL la procesa, el event loop puede hacer otras cosas"*.
+
+En este ejemplo concreto no hay otras tareas corriendo en paralelo, pero el patrón es correcto para aplicaciones reales donde:
+- Múltiples usuarios lanzan consultas simultáneamente.
+- El servidor no se queda bloqueado esperando a que la base de datos responda para atender la siguiente petición.
+
+En resumen: **el orden secuencial es una restricción del modelo de datos** (FK), mientras que **asyncio es una decisión de arquitectura** para no desperdiciar tiempo de CPU esperando I/O.
+
 ### Listing 5.4 — Insertar y consultar marcas
 
 ```python
