@@ -1,3 +1,28 @@
+# =============================================================================
+# listing_10_5.py — User Favorites Service (puerto 8002)
+# =============================================================================
+# Objetivo:
+#   Microservicio que gestiona los productos favoritos de un usuario.
+#   Expone GET /users/{id}/favorites, consulta la tabla user_favorite
+#   de la base de datos 'favorites' y devuelve la lista de product_id
+#   favoritos del usuario indicado.
+#
+#   Demuestra el patrón completo de un microservicio con aiohttp y
+#   asyncpg: pool de conexiones compartido via on_startup/on_cleanup,
+#   validación de input del usuario (HTTP 400 si {id} no es entero),
+#   query parametrizada con $1 para evitar SQL injection, y conversión
+#   de Records asyncpg a dicts JSON-serializables.
+#
+#   El BFF (listing_10_8.py) llama a este servicio concurrentemente
+#   junto con productos y carrito. Los favoritos son un dato OPCIONAL:
+#   si este servicio no responde en 1 segundo, el BFF devuelve
+#   favorite_items=null en lugar de fallar toda la petición.
+#
+#   Requiere: base de datos 'favorites' con tabla user_favorite
+#   (user_id INT, product_id INT). Ver sección 8 del resumen para
+#   los comandos de creación e inserción de datos de prueba.
+# =============================================================================
+
 import functools                         # Proporciona partial() para pre-aplicar argumentos a funciones
 from aiohttp import web                 # Framework web asíncrono
 from aiohttp.web_request import Request # Tipo del objeto de petición HTTP entrante

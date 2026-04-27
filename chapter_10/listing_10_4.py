@@ -1,3 +1,27 @@
+# =============================================================================
+# listing_10_4.py — Database Pool Utilities (módulo compartido)
+# =============================================================================
+# Objetivo:
+#   Módulo de utilidades reutilizable que encapsula la creación y
+#   destrucción del pool de conexiones a PostgreSQL (asyncpg).
+#   No es una aplicación aiohttp ni expone ningún endpoint HTTP.
+#
+#   El problema que resuelve: los servicios de favoritos (10_5),
+#   carrito (10_6) y productos (10_7) necesitan todos conectarse a
+#   PostgreSQL. Sin este módulo, cada uno repetiría el mismo código
+#   de conexión. Aquí se centraliza en dos funciones:
+#     - create_database_pool: crea el pool y lo guarda en app[DB_KEY]
+#     - destroy_database_pool: cierra el pool al apagar el servidor
+#
+#   Los servicios lo usan via functools.partial en on_startup/on_cleanup,
+#   ya que aiohttp solo pasa el objeto `app` a esos hooks y estas
+#   funciones necesitan también los parámetros de conexión (host,
+#   puerto, usuario, contraseña, nombre de BD).
+#
+#   DB_KEY es la constante string que todos los servicios usan como
+#   clave de diccionario para acceder al pool desde request.app[DB_KEY].
+# =============================================================================
+
 import asyncpg                          # Driver asíncrono para PostgreSQL; proporciona create_pool y Pool
 from aiohttp.web_app import Application # Tipo de la instancia de aplicación aiohttp; usado para type hints
 from asyncpg.pool import Pool           # Tipo del pool de conexiones; usado para type hints

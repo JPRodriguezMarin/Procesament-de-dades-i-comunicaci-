@@ -1,3 +1,27 @@
+# =============================================================================
+# listing_10_7.py — Product Service (puerto 8000)
+# =============================================================================
+# Objetivo:
+#   Microservicio que devuelve el catálogo completo de productos.
+#   Expone GET /products, consulta la tabla 'product' de la base de
+#   datos 'products' y devuelve la lista de todos los productos con
+#   su product_id y product_name.
+#
+#   Es el servicio MÁS CRÍTICO del sistema: el BFF (listing_10_8.py)
+#   lo trata como dato OBLIGATORIO. Si no responde en 1 segundo, el
+#   BFF devuelve HTTP 504 inmediatamente sin intentar obtener el
+#   inventario, el carrito ni los favoritos. Sin el catálogo de
+#   productos, no tiene sentido mostrar ningún dato al cliente.
+#
+#   A diferencia de los servicios de carrito y favoritos, este no
+#   recibe parámetros del usuario (sin {id} en la ruta), por lo que
+#   no necesita validación de input ni manejo de HTTP 400/404.
+#
+#   Requiere: base de datos 'products' con tabla 'product' creada
+#   por los listings del capítulo 5 (listing_5_3.py a listing_5_6.py).
+#   Esta BD es un prerequisito del capítulo 10 que viene del cap. 5.
+# =============================================================================
+
 import functools                         # Proporciona partial() para pre-aplicar argumentos a funciones
 from aiohttp import web                 # Framework web asíncrono
 from aiohttp.web_request import Request # Tipo del objeto de petición HTTP entrante

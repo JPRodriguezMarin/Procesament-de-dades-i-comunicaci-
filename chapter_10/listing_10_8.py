@@ -1,3 +1,32 @@
+# =============================================================================
+# listing_10_8.py — Backend-for-Frontend Service (puerto 9000)
+# =============================================================================
+# Objetivo:
+#   Servicio central del capítulo. Implementa el patrón BFF (Backend-
+#   for-Frontend): recibe una única petición del cliente y agrega los
+#   datos de los cuatro microservicios restantes de forma concurrente.
+#
+#   Expone GET /products/all y aplica dos niveles de concurrencia:
+#
+#   Nivel 1 — asyncio.wait con timeout=1s sobre tres peticiones:
+#     - GET /products        (obligatorio: HTTP 504 si no responde)
+#     - GET /users/3/favorites (opcional: devuelve null si no responde)
+#     - GET /users/3/cart      (opcional: devuelve null si no responde)
+#
+#   Nivel 2 — asyncio.wait con timeout=1s sobre N peticiones:
+#     - GET /products/{id}/inventory por cada producto del catálogo
+#       (opcional por producto: inventory=null si ese no responde)
+#
+#   La separación entre done y pending que devuelve asyncio.wait es
+#   clave: permite tratar de forma diferente los datos obligatorios
+#   (productos) y los opcionales (inventario, carrito, favoritos),
+#   cancelando siempre las tasks pendientes para liberar recursos.
+#
+#   Este servicio no tiene base de datos propia ni on_startup/on_cleanup.
+#   Depende de que los cuatro microservicios estén corriendo antes de
+#   recibir peticiones.
+# =============================================================================
+
 import asyncio                          # Proporciona create_task() y wait() para concurrencia
 from asyncio import Task               # Tipo Task para type hints
 import logging                         # Registra errores de servicios externos sin interrumpir el flujo

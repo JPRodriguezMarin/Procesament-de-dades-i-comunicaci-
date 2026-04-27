@@ -1,3 +1,29 @@
+# =============================================================================
+# listing_10_6.py — User Cart Service (puerto 8003)
+# =============================================================================
+# Objetivo:
+#   Microservicio que gestiona el carrito de compra de un usuario.
+#   Expone GET /users/{id}/cart, consulta la tabla user_cart de la
+#   base de datos 'cart' y devuelve la lista de product_id que el
+#   usuario tiene en su carrito.
+#
+#   Es estructuralmente idéntico al servicio de favoritos (10_5).
+#   La diferencia intencionada ilustra el principio de base de datos
+#   por servicio: aunque la lógica es la misma, cada microservicio
+#   tiene su propia BD aislada ('cart' vs 'favorites'), su propio
+#   esquema de tabla (user_cart vs user_favorite) y su propio puerto
+#   (8003 vs 8002). Esto permite que un fallo, migración o escalado
+#   en uno no afecte al otro.
+#
+#   El BFF (listing_10_8.py) llama a este servicio concurrentemente.
+#   El carrito es un dato OPCIONAL: si no responde en 1 segundo, el
+#   BFF devuelve cart_items=null en lugar de fallar la petición.
+#
+#   Requiere: base de datos 'cart' con tabla user_cart
+#   (user_id INT, product_id INT). Ver sección 8 del resumen para
+#   los comandos de creación e inserción de datos de prueba.
+# =============================================================================
+
 import functools                         # Proporciona partial() para pre-aplicar argumentos a funciones
 from aiohttp import web                 # Framework web asíncrono
 from aiohttp.web_request import Request # Tipo del objeto de petición HTTP entrante

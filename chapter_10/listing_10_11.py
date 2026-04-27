@@ -1,3 +1,33 @@
+# =============================================================================
+# listing_10_11.py — CircuitBreaker Class
+# =============================================================================
+# Objetivo:
+#   Implementa el patrón Circuit Breaker (interruptor de circuito),
+#   un mecanismo de resiliencia para proteger llamadas a servicios
+#   externos que pueden fallar o tardar demasiado.
+#
+#   Problema que resuelve: si un microservicio empieza a fallar, seguir
+#   enviándole peticiones desperdicia tiempo (esperando el timeout) y
+#   recursos (conexiones abiertas). El circuit breaker detecta los fallos
+#   acumulados y "abre el circuito": a partir de ese momento, falla
+#   inmediatamente (fail fast) sin ni siquiera intentar la petición,
+#   dando tiempo al servicio a recuperarse.
+#
+#   Tres conceptos de tiempo que gestiona la clase:
+#     - timeout:        límite por petición individual (via asyncio.wait_for)
+#     - time_window:    ventana en la que se acumulan los fallos; si el
+#                       primer fallo fue hace más de time_window segundos,
+#                       los fallos anteriores ya no cuentan
+#     - reset_interval: tiempo que espera el circuito abierto antes de
+#                       intentar cerrarse con una petición de prueba
+#
+#   Dos clases exportadas:
+#     - CircuitOpenException: excepción que indica circuito abierto
+#     - CircuitBreaker: clase principal con métodos request() y _do_request()
+#
+#   Usado en listing_10_12.py para demostrar su comportamiento.
+# =============================================================================
+
 import asyncio                          # Proporciona wait_for() para aplicar timeout a cada petición
 from datetime import datetime, timedelta  # Usados para calcular si han pasado los intervalos de tiempo
 
