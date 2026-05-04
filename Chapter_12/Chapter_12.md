@@ -97,6 +97,8 @@ La cola lleva un contador interno:
 
 ### Listado 12.1 — Cola de supermercado básica
 
+> **Objetivo:** Introducir `asyncio.Queue` con su forma más simple. Muestra cómo meter elementos con `put_nowait`, sacarlos con `get_nowait`, y lanzar múltiples workers en paralelo con `asyncio.create_task`. La analogía del supermercado hace visible el patrón productor-consumidor de forma intuitiva.
+
 **Descripción:** 10 clientes con productos aleatorios entran en una cola. Tres cajeros los atienden al mismo tiempo usando `get_nowait` y `put_nowait`.
 
 ```python
@@ -170,6 +172,8 @@ Cajero 1 escanea plátanos
 ---
 
 ### Listado 12.2 — Productor continuo con corrutinas `get` y `put`
+
+> **Objetivo:** Demostrar la diferencia crítica entre las versiones bloqueantes (`await queue.get/put`) y no bloqueantes (`get_nowait/put_nowait`). Introduce el concepto de **cola con límite** (`maxsize`) y muestra cómo el productor se pausa automáticamente cuando la cola está llena, sin lanzar excepciones ni consumir CPU.
 
 **Descripción:** Mejora del anterior. Un **productor** genera clientes continuamente (cada segundo). Los cajeros usan `await queue.get()` para esperar si no hay clientes. La cola tiene un límite máximo de 5 clientes.
 
@@ -309,6 +313,8 @@ Las colas asyncio son **solo en memoria (RAM)**. Si el servidor se cae o se rein
 
 ### Listado 12.3 — Cola integrada en una aplicación web (aiohttp)
 
+> **Objetivo:** Mostrar el caso de uso más real de las colas asíncronas: desacoplar la respuesta HTTP del procesado lento. El endpoint responde inmediatamente al usuario mientras los workers trabajan en segundo plano. También enseña el ciclo de vida de una aplicación aiohttp con los hooks `on_startup`/`on_shutdown` y el apagado limpio con `asyncio.wait_for` + `cancel()`.
+
 **Descripción:** Una API REST con un endpoint `POST /order`. Los pedidos entran en una cola. Cinco workers los procesan en paralelo. La cola y los workers se crean al arrancar la app y se limpian al apagarla.
 
 ```python
@@ -435,6 +441,8 @@ Un crawler real puede entrar en bucles si una página A enlaza a B y B enlaza a 
 
 ### Listado 12.4 — Rastreador web básico
 
+> **Objetivo:** Ilustrar el patrón donde los **consumidores también son productores**. Al procesar una URL se encuentran nuevas URLs que se añaden a la misma cola. Introduce además el control de URLs ya visitadas (con un `set`) para evitar bucles infinitos, y el uso de `queue.join()` + `cancel()` para terminar limpiamente cuando no queda trabajo.
+
 ```python
 import asyncio
 from asyncio import Queue
@@ -526,6 +534,8 @@ await queue.put((2, 'importante')) # sale segundo
 
 ### Listado 12.5 — Cola con prioridad básica
 
+> **Objetivo:** Presentar `asyncio.PriorityQueue` con el formato más sencillo: tuplas `(número, valor)`. Demostrar visualmente que el orden de salida no depende del orden de inserción sino del número de prioridad (menor = más urgente).
+
 ```python
 import asyncio
 from asyncio import PriorityQueue
@@ -558,6 +568,8 @@ Prioridad 3: Otro pedido normal
 ```
 
 ### Listado 12.6 — Cola con prioridad y dataclass
+
+> **Objetivo:** Resolver el problema del Listado 12.5 cuando el contenido de las tareas no es comparable directamente (objetos complejos). Enseña a usar `@dataclass(order=True)` con `field(compare=False)` para que Python ordene por prioridad numérica ignorando el contenido de la tarea.
 
 Usar una tupla funciona, pero si el contenido de la tarea es un string complejo o un objeto, la comparación puede fallar. La solución es un `dataclass`:
 
@@ -650,6 +662,8 @@ Cola LIFO:  pones [A, B, C] → sacas C, B, A  (al revés)
 
 ### Listado 12.7 — Cola LIFO básica
 
+> **Objetivo:** Introducir `asyncio.LifoQueue` mostrando de forma directa que el orden de salida es el inverso al de entrada. Ejemplo mínimo para interiorizar el concepto de pila (stack) antes de usarlo con workers.
+
 ```python
 import asyncio
 from asyncio import LifoQueue
@@ -681,6 +695,8 @@ Procesando en orden LIFO:
 ```
 
 ### Listado 12.8 — Cola LIFO con workers
+
+> **Objetivo:** Combinar `LifoQueue` con múltiples workers para ver el comportamiento LIFO en un contexto concurrente real. Con varios workers el orden no es perfectamente inverso (depende de cuándo cada worker queda libre), lo que ilustra la interacción entre LIFO y concurrencia.
 
 ```python
 import asyncio
