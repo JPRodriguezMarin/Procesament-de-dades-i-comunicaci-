@@ -1323,7 +1323,16 @@ DURATION_SECONDS = 5
 ```
 Amb 5x més workers, el throughput hauria d'augmentar — però no 5x. Per què? Cada worker fa `await drain()` i `await readline()`, cedint el control. El bottleneck passa a ser el servidor processant 50 connexions. Observa si el throughput escala o s'estabilitza.
 
-Resultat esperat: throughput més alt que Experiment 1, però menys del doble per connexió.
+Resultat esperat:
+```
+Iniciant prova de càrrega: 50 connexions durant 5s
+--- Resultats ---
+Temps total:        5.02s
+Total peticions:    3800-5500     ← més que exp.1 però no 5x
+Errors:             0
+Peticions/segon:    760-1100      ← per connexió: menys que exp.1
+```
+El throughput total puja però el rendiment per connexió baixa — el servidor reparteix el temps entre 50 clients.
 
 ---
 
@@ -1332,9 +1341,18 @@ Resultat esperat: throughput més alt que Experiment 1, però menys del doble pe
 MAX_CONNECTIONS = 200
 DURATION_SECONDS = 5
 ```
-A partir d'un cert punt, afegir més connexions no millora el throughput — el servidor és el coll d'ampolla. Pots veure errors si el sistema operativo arriba al límit de sockets oberts. En Windows el límit per defecte és ~1000 file descriptors.
+A partir d'un cert punt, afegir més connexions no millora el throughput — el servidor és el coll d'ampolla. Pots veure errors si el sistema operatiu arriba al límit de sockets oberts. En Windows el límit per defecte és ~1000 file descriptors.
 
-Resultat esperat: throughput similar o inferior a Experiment 2. Possibles errors de connexió.
+Resultat esperat:
+```
+Iniciant prova de càrrega: 200 connexions durant 5s
+--- Resultats ---
+Temps total:        5.08s
+Total peticions:    4000-6000     ← similar o inferior a exp.2
+Errors:             0-5           ← possibles errors de connexió
+Peticions/segon:    800-1200      ← estabilitzat, no escala més
+```
+Si el servidor no pot atendre 200 connexions simultànies, alguns workers esperen i el throughput per connexió cau molt. Errors > 0 indica que el SO ha rebutjat alguna connexió.
 
 ---
 
@@ -1345,7 +1363,16 @@ DURATION_SECONDS = 2
 ```
 Amb poc temps, el cost d'obrir les connexions TCP (handshake) pesa molt sobre el total. El throughput mesurat serà inferior a la línia base perquè inclou el temps d'establir connexió. Les mesures curtes no són representatives.
 
-Resultat esperat: throughput inferior a Experiment 1. Alta variabilitat entre execucions.
+Resultat esperat:
+```
+Iniciant prova de càrrega: 10 connexions durant 2s
+--- Resultats ---
+Temps total:        2.01s
+Total peticions:    250-500       ← molt menys que exp.1
+Errors:             0
+Peticions/segon:    125-250       ← ~6x menys que exp.1
+```
+Executa 3 vegades seguits — veuràs valors molt diferents cada cop. Això demostra que 2s és massa poc per obtenir una mesura estable.
 
 ---
 
@@ -1356,7 +1383,16 @@ DURATION_SECONDS = 30
 ```
 Amb 30 segons, el cost inicial de connexió és negligible. La mesura reflecteix el rendiment real en estat estacionari. Ideal per comparar servidors o configuracions.
 
-Resultat esperat: throughput molt estable, proper a Experiment 1 però més consistent entre execucions.
+Resultat esperat:
+```
+Iniciant prova de càrrega: 10 connexions durant 30s
+--- Resultats ---
+Temps total:        30.02s
+Total peticions:    24000-36000   ← ~6x exp.1 (30s vs 5s)
+Errors:             0
+Peticions/segon:    800-1200      ← molt consistent, igual que exp.1
+```
+Executa 3 vegades — els valors de `Peticions/segon` seran molt similars entre sí, confirmant que la mesura és estable.
 
 ---
 
