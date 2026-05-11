@@ -910,6 +910,144 @@ El chat funciona con **un solo hilo**, gracias a la concurrencia cooperativa de 
 
 ---
 
+## Exercicis Pràctics
+
+---
+
+### Exercici 1 — Servidor de Telemetria de Sensors de Planta (`servidor_telemetria.py`)
+
+**Context:** En una planta industrial, sensors de temperatura i pressió envien dades a un servidor central. El servidor ha de gestionar múltiples sensors simultanis, processar les dades i confirmar la recepció a cada sensor.
+
+**Comportament del servidor:**
+- Escolta al port `8888`.
+- Per cada sensor connectat, llegeix dades línia a línia.
+- Si la dada conté `"ALERTA"` → respon `"PROTOCO_EMERGENCIA_ACTIVAT"`.
+- Qualsevol altra dada → respon `"DADA_REBUDA"`.
+- Gestiona desconnexions i errors sense caure.
+
+**Com provar-ho:**
+```
+# Terminal 1 — inicia el servidor
+python servidor_telemetria.py
+
+# Terminal 2 — simula un sensor
+nc localhost 8888
+Temperatura: 25C          →  DADA_REBUDA
+ALERTA: Pressió alta      →  PROTOCO_EMERGENCIA_ACTIVAT
+
+# Terminal 3 — segon sensor simultani (verifica concurrència)
+nc localhost 8888
+Humitat: 60%              →  DADA_REBUDA
+```
+
+**Explicació del codi:**
+
+`handle_sensor(reader, writer)` — coroutine que gestiona **un sensor**. asyncio en crea una instància per cada connexió entrant, de manera que tots els sensors s'atenen en paral·lel sense bloquejar-se mútuament.
+
+```python
+async def handle_sensor(reader: StreamReader, writer: StreamWriter) -> None:
+```
+
+Bucle principal: llegeix línies fins que el sensor es desconnecta (`readline()` retorna `b''`):
+```python
+while True:
+    data = await reader.readline()   # espera dades sense bloquejar
+    if not data:
+        break                        # sensor desconnectat (EOF)
+```
+
+Lògica de resposta: comprova si el missatge conté `"ALERTA"` i escriu la resposta corresponent. `drain()` garanteix que els bytes surten realment del buffer abans de continuar:
+```python
+writer.write(response.encode())
+await writer.drain()
+```
+
+Tancament net en el bloc `finally`: s'executa sempre, fins i tot si hi ha una excepció, evitant que els recursos quedin oberts:
+```python
+writer.close()
+await writer.wait_closed()
+```
+
+`main()` — crea el servidor i el manté actiu indefinidament:
+```python
+server = await asyncio.start_server(handle_sensor, '127.0.0.1', 8888)
+async with server:
+    await server.serve_forever()
+```
+
+**Conceptes aplicats:** `start_server`, `StreamReader`/`StreamWriter`, `drain()`, `close()` + `wait_closed()`, gestió d'excepcions per connexió.
+
+---
+
+### Exercici 2 — Prova de Càrrega (`carregues_telemetria.py`)
+
+**Context:** Volem mesurar quantes peticions per segon pot atendre el servidor de telemetria, simulant múltiples sensors concurrents — com fa l'eina `wrk` per a servidors HTTP.
+
+**Mètriques calculades:**
+
+| Mètrica | Descripció |
+|---|---|
+| Total peticions | Quants missatges s'han enviat i rebut correctament |
+| Errors | Connexions fallides o respostes incorrectes |
+| Temps total | Durada real de la prova en segons |
+| Peticions/segon | Throughput = total peticions ÷ temps total |
+
+**Com executar-ho:**
+```
+# Terminal 1 — servidor en marxa
+python servidor_telemetria.py
+
+# Terminal 2 — prova de càrrega (paràmetres per defecte: 10 connexions, 5 segons)
+python carregues_telemetria.py
+
+# Exemple de sortida:
+# Iniciant prova de càrrega: 10 connexions durant 5s
+# --- Resultats ---
+# Temps total:        5.01s
+# Total peticions:    4832
+# Errors:             0
+# Peticions/segon:    964.5
+```
+
+**Explicació del codi:**
+
+`sensor_worker(duration, results)` — simula **un sensor** que envia peticions en bucle durant `duration` segons. Acumula resultats en el diccionari compartit `results`:
+
+```python
+async def sensor_worker(duration: float, results: dict) -> None:
+    end_time = time.monotonic() + duration   # marca el moment de parada
+    ...
+    while time.monotonic() < end_time:       # envia fins que s'acabi el temps
+        writer.write(b'Temperatura: 25C\n')
+        await writer.drain()
+        response = await reader.readline()
+        results['requests'] += 1
+```
+
+Per què `time.monotonic()` i no `time.time()`? `monotonic()` mai va enrere (no es veu afectat per canvis d'hora del sistema), ideal per mesurar durades.
+
+`main()` — llança totes les tasques de sensor en paral·lel amb `create_task` i espera que acabin totes amb `gather`:
+```python
+tasks = [
+    asyncio.create_task(sensor_worker(DURATION_SECONDS, results))
+    for _ in range(MAX_CONNECTIONS)
+]
+await asyncio.gather(*tasks)
+```
+
+**Experiments recomanats:**
+
+| Paràmetre | Valor baix | Valor alt | Què observes |
+|---|---|---|---|
+| `MAX_CONNECTIONS` | 5 | 100 | Com escala el throughput |
+| `DURATION_SECONDS` | 2 | 30 | Estabilitat de la mesura |
+
+A partir d'un cert nombre de connexions, el throughput s'estabilitza o baixa — és el límit del servidor. Amb `MAX_CONNECTIONS` molt alt i el servidor aturat, tots els workers donen error i veus `Errors: N`.
+
+**Conceptes aplicats:** `time.monotonic()`, `create_task`, `gather`, `drain()`, mesura de rendiment asíncron.
+
+---
+
 ## Resumen del Capítulo
 
 | Concepto | Nivel | Para qué se usa |
