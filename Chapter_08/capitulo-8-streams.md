@@ -81,7 +81,7 @@ Para entender bien cómo funciona todo, el capítulo comienza explicando la capa
 
 | Término | Definición |
 |---|---|
-| **Transport** | Capa que abstrae la comunicación directa sobre un socket; gestiona el I/O de bytes |
+| **Transport** | Objeto de asyncio que envuelve un socket y expone tres operaciones simples: leer, escribir y cerrar. Oculta los detalles del socket para que el resto del código no tenga que tratar con él directamente. |
 | **Protocol** | Clase Python con callbacks (`connection_made`, `data_received`, etc.) que reacciona a eventos de red |
 | **Callback** | Función que se llama automáticamente cuando ocurre un evento (no se llama manualmente) |
 | **Diseño basado en callbacks** | Arquitectura donde el código no espera activamente sino que define qué hacer cuando llegan datos |
