@@ -220,12 +220,67 @@ async def main():
 asyncio.run(main())
 ```
 
-**Explicación:**
+**Explicación función por función:**
 
-- `protocol_factory` es una función (no una instancia) porque asyncio puede necesitar crear múltiples instancias del protocolo para múltiples conexiones.
-- `create_connection` devuelve `(transport, protocol)`. El transport lo ignoramos aquí (`_`) porque el protocolo ya lo guarda internamente.
-- `await protocol.get_response()` bloquea hasta que `eof_received` complete el future.
-- La salida incluirá cabeceras HTTP como `HTTP/1.1 200 OK`, `Cache-Control`, `Content-Type`, etc.
+---
+
+**`protocol_factory()` — fábrica del protocolo**
+
+```python
+def protocol_factory():
+    return HTTPGetClientProtocol(host, loop)
+```
+
+No es el protocolo en sí — es una función que *crea* el protocolo cuando asyncio lo necesite. asyncio la llama internamente al establecer la conexión.
+
+¿Por qué una función y no pasar la instancia directamente? Porque asyncio podría necesitar crear varias instancias (por ejemplo, si hay reintentos o múltiples conexiones). La factory permite eso sin que tú lo gestiones.
+
+> **Ejemplo real:** es como una máquina de café. No le das un café ya hecho — le das la máquina para que prepare uno cada vez que alguien lo pida.
+
+---
+
+**`make_request(host, port, loop)` — orquesta todo**
+
+```python
+async def make_request(host: str, port: int, loop: AbstractEventLoop) -> str:
+    def protocol_factory():
+        return HTTPGetClientProtocol(host, loop)
+
+    _, protocol = await loop.create_connection(protocol_factory, host=host, port=port)
+    return await protocol.get_response()
+```
+
+Esta es la función que realmente usas. Hace tres cosas en orden:
+1. Define la factory del protocolo
+2. Abre la conexión TCP con `create_connection` — asyncio llama a `connection_made` internamente, que ya envía la petición HTTP
+3. Espera la respuesta completa con `await protocol.get_response()`
+
+`create_connection` devuelve `(transport, protocol)`. El `_` descarta el transport porque el protocolo ya lo guarda dentro — no lo necesitamos aquí fuera.
+
+> **Ejemplo real:** `make_request('www.example.com', 80, loop)` abre una conexión al servidor de example.com en el puerto 80 (HTTP), envía `GET / HTTP/1.1...` y espera hasta recibir la página completa. El resultado es el HTML de la página como texto.
+
+---
+
+**`main()` — punto de entrada**
+
+```python
+async def main():
+    loop = asyncio.get_running_loop()
+    result = await make_request('www.example.com', 80, loop)
+    print(result)
+```
+
+Obtiene el event loop en ejecución y lo pasa a `make_request` porque el protocolo necesita el loop para crear el `Future` con `loop.create_future()`. Imprime la respuesta HTTP completa: cabeceras + cuerpo.
+
+> **Salida esperada:**
+> ```
+> HTTP/1.1 200 OK
+> Content-Type: text/html; charset=UTF-8
+> ...
+> <html>...</html>
+> ```
+
+---
 
 > **Limitación:** Esta forma (con transportes y protocolos directamente) implica mucho código boilerplate. Es útil para entender la base, pero en la práctica se usa la API de alto nivel: `StreamReader`/`StreamWriter`.
 
