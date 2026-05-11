@@ -997,12 +997,136 @@ async def main():
 asyncio.run(main())
 ```
 
-**Explicación de los puntos clave:**
+**Explicación ordenada del código:**
 
-- **❶** `listen_for_messages` lee líneas del servidor en bucle. Cada línea se añade al `MessageStore`, que automáticamente llama al callback `redraw_output` para refrescar la pantalla.
-- **❷** `read_and_send` lee el input del usuario carácter a carácter (usando `read_line`) y lo envía al servidor. Es un bucle infinito porque el usuario puede enviar mensajes ilimitados.
-- **❸** Abre la conexión al servidor y envía el mensaje de conexión con el nombre de usuario. Este es el handshake del protocolo: primer mensaje = `CONNECT <username>`.
-- **❹** Ambas tareas se crean con `create_task` y se espera con `asyncio.wait(return_when=FIRST_COMPLETED)`. Cuando cualquiera de las dos termina (desconexión del servidor o error de red), el cliente termina limpiamente. Sin este patrón, si el servidor cerrara la conexión, `read_and_send` seguiría intentando enviar mensajes y daría errores.
+---
+
+**Paso 1 — Imports: qué necesita el cliente**
+
+```python
+import tty
+from chapter_08.listing_8_5 import create_stdin_reader
+from chapter_08.listing_8_7 import (save_cursor_position, ...)
+from chapter_08.listing_8_8 import read_line
+from chapter_08.listing_8_9 import MessageStore
+```
+
+`tty` — módulo estándar para poner el terminal en modo raw (sin buffering de línea). Los demás imports son las utilidades construidas en listings anteriores. El cliente de chat es la integración de todo lo visto en la sección 8.4.
+
+---
+
+**Paso 2 — `send_message`: enviar un mensaje al servidor**
+
+```python
+async def send_message(message: str, writer: StreamWriter):
+    writer.write((message + '\n').encode())
+    await writer.drain()
+```
+
+Añade `\n` al final (el servidor usa `readline()`, que necesita ese terminador para saber dónde acaba el mensaje), convierte a bytes y vacía el buffer con `drain()`.
+
+---
+
+**Paso 3 — `listen_for_messages`: recibir mensajes del servidor (Tarea A)**
+
+```python
+async def listen_for_messages(reader: StreamReader, message_store: MessageStore):
+    while (message := await reader.readline()) != b'':
+        await message_store.append(message.decode())
+    await message_store.append('Server closed connection.')
+```
+
+Bucle infinito que espera líneas del servidor. Cada línea recibida se añade al `MessageStore`, que llama automáticamente a `redraw_output` y refresca la zona de mensajes en pantalla. Cuando el servidor cierra la conexión, `readline()` devuelve `b''` y el bucle termina — añadiendo el aviso de desconexión.
+
+---
+
+**Paso 4 — `read_and_send`: leer input del usuario y enviarlo (Tarea B)**
+
+```python
+async def read_and_send(stdin_reader: StreamReader, writer: StreamWriter):
+    while True:
+        message = await read_line(stdin_reader)
+        await send_message(message, writer)
+```
+
+Bucle infinito que lee lo que escribe el usuario carácter a carácter (con `read_line` del Listing 8.8 — necesario porque el terminal está en modo `setcbreak`) y lo envía al servidor. Nunca termina por sí solo — solo se para cuando `asyncio.wait` cancela esta tarea.
+
+---
+
+**Paso 5 — `main`: preparar la pantalla y conectarse**
+
+```python
+tty.setcbreak(0)
+sys.stdout.write('\033[2J\033[H')   # limpia pantalla completa
+rows = move_to_bottom_of_screen()   # mueve cursor a la última fila
+messages = MessageStore(redraw_output, rows - 1)
+```
+
+Pone el terminal en modo raw (`setcbreak`), limpia la pantalla y posiciona el cursor abajo. `MessageStore` se crea con el callback `redraw_output` (que sabe cómo dibujar mensajes arriba) y el número máximo de mensajes visibles (`rows - 1`).
+
+```python
+stdin_reader = await create_stdin_reader()
+username = await read_line(stdin_reader)
+```
+
+Conecta stdin al event loop de asyncio y pide el nombre de usuario. Este es el único `input()` asíncrono del cliente.
+
+```python
+reader, writer = await asyncio.open_connection('127.0.0.1', 8000)
+writer.write(f'CONNECT {username}\n'.encode())
+await writer.drain()
+```
+
+Abre la conexión TCP al servidor y envía el handshake. El servidor espera exactamente este formato como primer mensaje.
+
+---
+
+**Paso 6 — Lanzar las dos tareas en paralelo**
+
+```python
+message_listener = asyncio.create_task(listen_for_messages(reader, messages))
+input_listener   = asyncio.create_task(read_and_send(stdin_reader, writer))
+
+await asyncio.wait([message_listener, input_listener],
+                   return_when=asyncio.FIRST_COMPLETED)
+```
+
+Las dos tareas corren simultáneamente en el mismo hilo:
+- `message_listener` — escucha el servidor, actualiza la pantalla
+- `input_listener` — escucha el teclado, envía al servidor
+
+`asyncio.wait` con `FIRST_COMPLETED` retorna en cuanto **cualquiera** de las dos termina. Si el servidor cae, `message_listener` termina → `wait` retorna → el cliente cierra limpiamente. Sin esto, `input_listener` seguiría en bucle intentando enviar mensajes a un servidor que ya no existe.
+
+---
+
+**Explicación por función — resumen:**
+
+| Función | Rol | Cómo termina |
+|---|---|---|
+| `send_message` | Envía un mensaje al servidor con `\n` y `drain()` | Cuando `write` + `drain` completan |
+| `listen_for_messages` | **Tarea A**: recibe mensajes del servidor y refresca pantalla | Cuando el servidor cierra la conexión (`b''`) |
+| `read_and_send` | **Tarea B**: lee teclado y envía cada mensaje al servidor | Solo cuando `asyncio.wait` la cancela |
+| `redraw_output` (interna) | Callback de `MessageStore`: redibuja la zona de mensajes | Cada vez que llega un mensaje nuevo |
+| `main` | Configura terminal, conecta, lanza tareas, gestiona cierre | Cuando `FIRST_COMPLETED` retorna |
+
+---
+
+**Flujo completo — desde que el usuario arranca el cliente:**
+
+```
+1. main() limpia pantalla, mueve cursor abajo
+2. Pide username → usuario escribe "Alice" + Enter
+3. open_connection → TCP conectado al servidor
+4. Envía "CONNECT Alice\n" → handshake completado
+5. Lanza Tarea A (listen_for_messages) y Tarea B (read_and_send)
+6. [Servidor envía "Welcome! 1 user(s) are online!\n"]
+   → Tarea A recibe línea → MessageStore.append → redraw_output dibuja arriba
+7. [Usuario escribe "hola" + Enter]
+   → Tarea B lee "hola" con read_line → send_message envía "hola\n"
+8. [Servidor desconecta]
+   → Tarea A: readline() devuelve b'' → termina → asyncio.wait retorna
+9. main() cierra writer y termina
+```
 
 ### Resultado esperado
 
