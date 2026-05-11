@@ -234,10 +234,14 @@ asyncio.run(main())
 | Término | Definición |
 |---|---|
 | **`asyncio.Protocol`** | Clase base que se hereda para implementar callbacks de eventos de red |
-| **`Future`** | Objeto que representa un valor que estará disponible en el futuro; se completa con `set_result()` o `set_exception()` |
+| **`Future`** | Objeto que representa un valor que todavía no existe pero existirá. Actúa de "caja vacía": alguien la llena con `set_result()` y quien espera con `await` recibe ese valor en ese momento |
+| **`set_result(valor)`** | Método de `Future` que "llena la caja" con el resultado. Cualquier coroutine que esté haciendo `await` sobre ese future se despierta inmediatamente y recibe el valor |
+| **`set_exception(exc)`** | Método de `Future` que mete un error en la caja en vez de un valor. Quien esté haciendo `await` recibirá la excepción y el programa puede capturarla con `try/except` |
+| **`.decode()`** | Método de `bytes` que convierte bytes crudos a texto (`str`). Necesario porque por la red siempre viajan bytes, nunca texto directamente. Ejemplo: `b"hola".decode()` → `"hola"` |
+| **`.encode()`** | Lo contrario de `.decode()`: convierte texto a bytes para poder enviarlo por la red. Ejemplo: `"hola".encode()` → `b"hola"` |
 | **`connection_made`** | Callback llamado cuando la conexión TCP se establece |
-| **`data_received`** | Callback llamado cada vez que llegan bytes por el socket |
-| **`eof_received`** | Callback llamado cuando el otro extremo cierra la conexión |
+| **`data_received`** | Callback llamado cada vez que llegan bytes por el socket; puede llamarse varias veces para un mismo mensaje si la red lo trocea en paquetes |
+| **`eof_received`** | Callback llamado cuando el otro extremo cierra la conexión; señal de que no llegarán más datos |
 | **`connection_lost`** | Callback llamado cuando la conexión se pierde (con o sin error) |
 | **`create_connection`** | Método del event loop que crea una conexión TCP y la vincula a un protocolo |
 | **`protocol_factory`** | Función (callable) que devuelve una nueva instancia del protocolo; usada por asyncio internamente |
