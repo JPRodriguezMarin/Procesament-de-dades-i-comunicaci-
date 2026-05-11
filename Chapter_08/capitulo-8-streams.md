@@ -1297,12 +1297,96 @@ await asyncio.gather(*tasks)
 
 **Experiments recomanats:**
 
-| Paràmetre | Valor baix | Valor alt | Què observes |
-|---|---|---|---|
-| `MAX_CONNECTIONS` | 5 | 100 | Com escala el throughput |
-| `DURATION_SECONDS` | 2 | 30 | Estabilitat de la mesura |
+Per a cada experiment, canvia els paràmetres a `carregues_telemetria.py`, guarda i executa. Compara els resultats.
 
-A partir d'un cert nombre de connexions, el throughput s'estabilitza o baixa — és el límit del servidor. Amb `MAX_CONNECTIONS` molt alt i el servidor aturat, tots els workers donen error i veus `Errors: N`.
+---
+
+**Experiment 1 — Línia base (valors per defecte)**
+```python
+MAX_CONNECTIONS = 10
+DURATION_SECONDS = 5
+```
+Estableix el punt de referència. Anota el throughput. Tots els experiments posteriors es comparen amb aquest valor.
+
+Resultat esperat:
+```
+Peticions/segon: ~800-1200   (depèn de la màquina)
+Errors: 0
+```
+
+---
+
+**Experiment 2 — Augmentar connexions (escala lineal)**
+```python
+MAX_CONNECTIONS = 50
+DURATION_SECONDS = 5
+```
+Amb 5x més workers, el throughput hauria d'augmentar — però no 5x. Per què? Cada worker fa `await drain()` i `await readline()`, cedint el control. El bottleneck passa a ser el servidor processant 50 connexions. Observa si el throughput escala o s'estabilitza.
+
+Resultat esperat: throughput més alt que Experiment 1, però menys del doble per connexió.
+
+---
+
+**Experiment 3 — Connexions molt altes (límit del sistema)**
+```python
+MAX_CONNECTIONS = 200
+DURATION_SECONDS = 5
+```
+A partir d'un cert punt, afegir més connexions no millora el throughput — el servidor és el coll d'ampolla. Pots veure errors si el sistema operativo arriba al límit de sockets oberts. En Windows el límit per defecte és ~1000 file descriptors.
+
+Resultat esperat: throughput similar o inferior a Experiment 2. Possibles errors de connexió.
+
+---
+
+**Experiment 4 — Durada curta (mesura inestable)**
+```python
+MAX_CONNECTIONS = 10
+DURATION_SECONDS = 2
+```
+Amb poc temps, el cost d'obrir les connexions TCP (handshake) pesa molt sobre el total. El throughput mesurat serà inferior a la línia base perquè inclou el temps d'establir connexió. Les mesures curtes no són representatives.
+
+Resultat esperat: throughput inferior a Experiment 1. Alta variabilitat entre execucions.
+
+---
+
+**Experiment 5 — Durada llarga (mesura estable)**
+```python
+MAX_CONNECTIONS = 10
+DURATION_SECONDS = 30
+```
+Amb 30 segons, el cost inicial de connexió és negligible. La mesura reflecteix el rendiment real en estat estacionari. Ideal per comparar servidors o configuracions.
+
+Resultat esperat: throughput molt estable, proper a Experiment 1 però més consistent entre execucions.
+
+---
+
+**Experiment 6 — Servidor aturat (prova d'errors)**
+```python
+MAX_CONNECTIONS = 10
+DURATION_SECONDS = 5
+```
+Para el servidor (`Ctrl+C` a Terminal 1) i executa la prova. Tots els workers intenten connectar-se i fallen immediatament.
+
+Resultat esperat:
+```
+Total peticions: 0
+Errors: 10
+Peticions/segon: 0.0
+```
+Confirma que la gestió d'errors del `sensor_worker` funciona correctament — cap excepció no capturada, el programa acaba net.
+
+---
+
+**Resum visual dels experiments:**
+
+| Experiment | `MAX_CONNECTIONS` | `DURATION_SECONDS` | Què mesura |
+|---|---|---|---|
+| 1 — Línia base | 10 | 5 | Punt de referència |
+| 2 — Escala | 50 | 5 | Guany amb més connexions |
+| 3 — Límit | 200 | 5 | Saturació del servidor |
+| 4 — Durada curta | 10 | 2 | Impacte del handshake TCP |
+| 5 — Durada llarga | 10 | 30 | Rendiment en estat estacionari |
+| 6 — Sense servidor | 10 | 5 | Gestió correcta d'errors |
 
 **Conceptes aplicats:** `time.monotonic()`, `create_task`, `gather`, `drain()`, mesura de rendiment asíncron.
 
