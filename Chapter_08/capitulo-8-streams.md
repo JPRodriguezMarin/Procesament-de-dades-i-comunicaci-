@@ -122,6 +122,12 @@ El transport llama a estos métodos del protocol cuando ocurren los eventos, y e
 
 > **Objetivo:** Demostrar la API de bajo nivel de asyncio (transportes y protocolos) implementando manualmente un cliente HTTP GET. Muestra cómo se implementan los callbacks del ciclo de vida de la conexión, cómo se acumulan datos recibidos en un buffer, y cómo se usa un `Future` para "conectar" el mundo de callbacks con el mundo de coroutines (`await`).
 
+> **¿Qué es un `Future`?** Un `Future` es un objeto que representa un valor que **todavía no existe pero existirá en el futuro**. Funciona como una "caja vacía": alguien la llenará más tarde con un resultado (o un error), y quien esté esperando recibirá ese valor en ese momento. En asyncio se usa para comunicar dos mundos que no pueden hablar directamente: los callbacks (que no usan `await`) y las coroutines (que sí). El callback llena la caja con `set_result()`; la coroutine espera a que se llene con `await`.
+
+> **`get_response()`** — Coroutine que simplemente hace `await self._future`. No hace nada más: solo espera a que la caja (`_future`) tenga un valor. Cuando alguien llame `await protocol.get_response()`, ese código quedará suspendido hasta que el future se complete. Desde fuera, parece magia — en realidad es el future actuando de mensajero.
+
+> **`self._future.set_result(self._response_buffer.decode())`** — Esta línea "llena la caja". Se ejecuta en `eof_received()`, cuando ya han llegado todos los datos. Toma el buffer acumulado (bytes crudos), lo convierte a texto con `.decode()` y lo mete en el future como resultado. En ese instante, cualquier coroutine que estuviera haciendo `await get_response()` se despierta y recibe ese texto.
+
 ```python
 import asyncio
 from asyncio import Transport, Future, AbstractEventLoop
