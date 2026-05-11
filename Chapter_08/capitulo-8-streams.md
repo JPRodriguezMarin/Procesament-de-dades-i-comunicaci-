@@ -1174,19 +1174,31 @@ El chat funciona con **un solo hilo**, gracias a la concurrencia cooperativa de 
 - Gestiona desconnexions i errors sense caure.
 
 **Com provar-ho:**
+
+> `nc` no està disponible a Windows. Usa `test_sensor.py` (inclòs a la carpeta) com a substitut interactiu.
+
 ```
 # Terminal 1 — inicia el servidor
 python servidor_telemetria.py
 
-# Terminal 2 — simula un sensor
-nc localhost 8888
-Temperatura: 25C          →  DADA_REBUDA
-ALERTA: Pressió alta      →  PROTOCO_EMERGENCIA_ACTIVAT
+# Terminal 2 — simula el primer sensor
+python test_sensor.py
+Sensor > Temperatura: 25C          →  Servidor: DADA_REBUDA
+Sensor > ALERTA: Pressió alta      →  Servidor: PROTOCO_EMERGENCIA_ACTIVAT
 
 # Terminal 3 — segon sensor simultani (verifica concurrència)
-nc localhost 8888
-Humitat: 60%              →  DADA_REBUDA
+python test_sensor.py
+Sensor > Pressió: 1.2 bar          →  Servidor: DADA_REBUDA
 ```
+
+A la Terminal 1 veuràs els logs dels dos sensors intercalats amb ports diferents:
+```
+Sensor connectat: ('127.0.0.1', 52341)
+Sensor connectat: ('127.0.0.1', 52342)
+[('127.0.0.1', 52341)] Dada rebuda: Temperatura: 25C
+[('127.0.0.1', 52342)] Dada rebuda: Pressió: 1.2 bar
+```
+Això confirma que el servidor atén els dos sensors en paral·lel sense bloquejar-se. `Ctrl+C` per tancar cada `test_sensor.py`.
 
 **Explicació del codi:**
 
