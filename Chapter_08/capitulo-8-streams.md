@@ -40,7 +40,19 @@ Piensa en un stream como si fuera una "tubería" por la que viajan datos: puedes
 
 ### Objetivo de los Streams
 
-El objetivo principal es **simplificar el desarrollo de aplicaciones de red**. Sin streams tendríamos que gestionar sockets a mano, lidiar con buffers y manejar eventos de bajo nivel. Los streams encapsulan toda esa complejidad, haciendo que crear clientes y servidores sea mucho más sencillo y seguro. El uso de streams es la **forma recomendada** para construir aplicaciones de red con asyncio.
+El objetivo principal es **simplificar el desarrollo de aplicaciones de red**. Los streams encapsulan toda la complejidad de trabajar con sockets directamente, haciendo que crear clientes y servidores sea mucho más sencillo y seguro. El uso de streams es la **forma recomendada** para construir aplicaciones de red con asyncio.
+
+**¿Qué pasa si gestionas sockets a mano?** Estos son los problemas reales que aparecen:
+
+| Problema | Descripción |
+|---|---|
+| **Gestión manual de buffers** | Los datos no llegan de golpe: pueden llegar troceados en varios paquetes. Hay que acumularlos en un buffer y detectar cuándo el mensaje está completo. |
+| **Bloqueos** | Las operaciones de socket son bloqueantes por defecto: `recv()` congela el hilo hasta que llegan datos. Con asyncio esto rompe el event loop. |
+| **Manejo de errores de red** | Conexiones perdidas, timeouts, EOF inesperado — cada caso hay que detectarlo y manejarlo manualmente. |
+| **SSL/TLS** | Cifrar la conexión requiere añadir una capa extra y gestionar el handshake criptográfico a mano. |
+| **Cierre limpio** | Cerrar un socket correctamente (esperar a que se vacíe el buffer, notificar al otro extremo) implica varios pasos que es fácil olvidar. |
+
+Los streams de asyncio resuelven todos estos problemas internamente.
 
 ### Glosario — Conceptos básicos
 
@@ -50,7 +62,7 @@ El objetivo principal es **simplificar el desarrollo de aplicaciones de red**. S
 | **Stream** | Flujo bidireccional de datos que abstrae la comunicación de red o E/S |
 | **StreamReader** | Objeto asyncio para leer bytes de una conexión de forma asíncrona |
 | **StreamWriter** | Objeto asyncio para escribir bytes en una conexión de forma asíncrona |
-| **Socket** | Canal de comunicación de red a nivel de sistema operativo |
+| **Socket** | Punto de conexión entre dos programas que quieren comunicarse por red. Es como un enchufe: tu programa lo abre, lo conecta a otra dirección (IP + puerto) y desde ese momento puede enviar y recibir bytes como si fuera un archivo. El sistema operativo gestiona todo lo que ocurre por debajo (cables, paquetes, etc.). |
 | **Buffer** | Área de memoria temporal que almacena datos mientras se transfieren |
 | **Coroutine** | Función asíncrona que puede pausarse y resumirse sin bloquear el hilo |
 | **Concurrencia cooperativa** | Modelo donde las tareas ceden el control voluntariamente (vs. preemptiva) |
