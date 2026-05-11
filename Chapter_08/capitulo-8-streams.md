@@ -787,13 +787,137 @@ async def main():
 asyncio.run(main())
 ```
 
-**Explicación de los puntos clave:**
+**Explicación línea por línea:**
 
-- **❶** El primer mensaje de cada cliente debe ser `CONNECT <username>`. Si no lo es, el servidor cierra la conexión. Esto implementa la fase de "handshake" del protocolo de aplicación.
-- **❷** Guarda el `StreamWriter` en un diccionario indexado por nombre de usuario. Lanza una tarea independiente para escuchar mensajes, de modo que el servidor puede seguir aceptando más conexiones.
-- **❸** Informa al cliente del número de usuarios conectados y notifica a todos los demás del nuevo usuario.
-- **❹** Usa `asyncio.wait_for(reader.readline(), 60)` para implementar el timeout de inactividad. Si el cliente no envía nada en 60 segundos, `wait_for` lanza `asyncio.TimeoutError`, se captura la excepción y se elimina al usuario.
-- **❺** Envía el mensaje a todos los usuarios. Para evitar modificar el diccionario mientras se itera sobre él (lo cual daría `RuntimeError`), los usuarios inactivos se acumulan en una lista y se eliminan después del bucle.
+```python
+class ChatServer:
+```
+Clase que encapsula todo el estado y la lógica del servidor. Tener el servidor en una clase permite que `_username_to_writer` sea accesible desde todos los métodos sin usar variables globales.
+
+```python
+    def __init__(self):
+        self._username_to_writer = {}
+```
+Diccionario que mapea `nombre_usuario → StreamWriter`. Es el estado central del servidor: saber a quién escribir para enviar un mensaje.
+
+```python
+    async def start_chat_server(self, host: str, port: int):
+        server = await asyncio.start_server(self.client_connected, host, port)
+        async with server:
+            await server.serve_forever()
+```
+Arranca el servidor. `self.client_connected` es el callback — asyncio lo llamará automáticamente cada vez que llegue un cliente. `async with server` garantiza cierre limpio. `serve_forever()` bloquea hasta que el servidor se cancele.
+
+```python
+    async def client_connected(self, reader: StreamReader, writer: StreamWriter):
+        command = await reader.readline()
+```
+Primer contacto con el cliente. Se espera la primera línea — que debe ser el handshake `CONNECT <username>`. `await` cede el control al event loop mientras espera; el resto de clientes siguen siendo atendidos.
+
+```python
+        command, args = command.split()
+```
+Divide la línea en dos partes. Si el cliente envió `b'CONNECT Alice\n'`, `command = b'CONNECT'` y `args = b'Alice\n'`.
+
+```python
+        if command == b'CONNECT':
+            username = args.replace(b'\n', b'').decode()
+```
+Verifica el protocolo. Elimina el `\n` del final y convierte bytes a texto. Si el comando no es `CONNECT`, el servidor cierra la conexión inmediatamente.
+
+```python
+            self._add_user(username, reader, writer)
+            await self._on_connect(username, writer)
+```
+Registra al usuario y le envía el mensaje de bienvenida. Orden importante: primero registrar, luego notificar (para que el contador de `_on_connect` sea correcto).
+
+```python
+    def _add_user(self, username, reader, writer):
+        self._username_to_writer[username] = writer
+        asyncio.create_task(self._listen_for_messages(username, reader))
+```
+Guarda el writer en el diccionario para poder enviarle mensajes. `create_task` lanza `_listen_for_messages` como tarea independiente — no bloqueante. `client_connected` retorna inmediatamente y el servidor puede aceptar el próximo cliente.
+
+```python
+    async def _on_connect(self, username, writer):
+        writer.write(f'Welcome! {len(self._username_to_writer)} user(s) are online!\n'.encode())
+        await writer.drain()
+        await self._notify_all(f'{username} connected!\n')
+```
+Envía bienvenida al nuevo usuario con el conteo actual. `drain()` vacía el buffer antes de continuar. Luego notifica a todos los demás del nuevo usuario.
+
+```python
+    async def _remove_user(self, username):
+        writer = self._username_to_writer[username]
+        del self._username_to_writer[username]
+        try:
+            writer.close()
+            await writer.wait_closed()
+        except Exception as e:
+            logging.exception(...)
+```
+Elimina al usuario del diccionario y cierra su writer. El `try/except` evita que un error al cerrar (writer ya cerrado, por ejemplo) mate el servidor entero.
+
+```python
+    async def _listen_for_messages(self, username, reader):
+        try:
+            while (data := await asyncio.wait_for(reader.readline(), 60)) != b'':
+                await self._notify_all(f'{username}: {data.decode()}')
+            await self._notify_all(f'{username} has left the chat\n')
+        except Exception as e:
+            logging.exception(...)
+            await self._remove_user(username)
+```
+Bucle principal de escucha. `wait_for(..., 60)` añade timeout: si el usuario no escribe en 60 segundos, lanza `TimeoutError` → se captura → se elimina al usuario. Si `readline()` devuelve `b''` el cliente cerró la conexión limpiamente. El walrus operator `:=` asigna y comprueba en una sola expresión.
+
+```python
+    async def _notify_all(self, message):
+        inactive_users = []
+        for username, writer in self._username_to_writer.items():
+            try:
+                writer.write(message.encode())
+                await writer.drain()
+            except ConnectionError as e:
+                inactive_users.append(username)
+        [await self._remove_user(username) for username in inactive_users]
+```
+Envía el mensaje a todos los usuarios. No se puede eliminar del diccionario mientras se itera sobre él (`RuntimeError`), así que los usuarios con error se acumulan en `inactive_users` y se eliminan después del bucle.
+
+```python
+async def main():
+    chat_server = ChatServer()
+    await chat_server.start_chat_server('127.0.0.1', 8000)
+
+asyncio.run(main())
+```
+Punto de entrada: crea el servidor y lo arranca. `asyncio.run` gestiona el event loop completo.
+
+---
+
+**Explicación por función — qué hace cada una:**
+
+| Función | Quién la llama | Qué hace |
+|---|---|---|
+| `start_chat_server` | `main()` | Arranca el servidor y lo mantiene activo indefinidamente |
+| `client_connected` | asyncio (automáticamente) | Valida el handshake inicial y registra al usuario |
+| `_add_user` | `client_connected` | Guarda el writer y lanza la tarea de escucha del usuario |
+| `_on_connect` | `client_connected` | Envía bienvenida al nuevo usuario y notifica a los demás |
+| `_remove_user` | `_listen_for_messages`, `_notify_all` | Elimina al usuario del diccionario y cierra su conexión |
+| `_listen_for_messages` | Tarea independiente (`create_task`) | Bucle infinito que lee mensajes del usuario con timeout de 60s |
+| `_notify_all` | `_on_connect`, `_listen_for_messages` | Envía un mensaje a todos los usuarios conectados |
+| `main` | `asyncio.run` | Crea el servidor y lanza el event loop |
+
+**Flujo completo cuando Alice se conecta y escribe "hola":**
+
+```
+1. asyncio detecta conexión → llama client_connected(reader_alice, writer_alice)
+2. client_connected lee "CONNECT Alice\n" → llama _add_user + _on_connect
+3. _add_user guarda writer_alice en el diccionario y lanza _listen_for_messages como tarea
+4. _on_connect envía "Welcome! 1 user(s)..." a Alice y "Alice connected!" a todos
+5. [Alice escribe "hola"]
+6. _listen_for_messages recibe "hola\n" → llama _notify_all("Alice: hola\n")
+7. _notify_all itera el diccionario y escribe "Alice: hola\n" a cada writer conectado
+```
 
 > **Caso de uso real:** El backend de un soporte al cliente en tiempo real. Varios agentes de soporte conectados al servidor reciben los mensajes de los clientes. El timeout de 60 segundos desconecta automáticamente a los clientes que pierden la conexión sin avisar (cierre de pestaña, corte de red), liberando recursos del servidor sin intervención manual.
 
