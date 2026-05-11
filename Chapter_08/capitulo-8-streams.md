@@ -175,7 +175,19 @@ class HTTPGetClientProtocol(asyncio.Protocol):
 - **❶** `get_response()` es una coroutine que espera el future interno. Esto es el puente entre callbacks y `await`: el código externo puede hacer `await protocol.get_response()` de forma natural.
 - **❷** Construye la petición HTTP/1.1 en bytes con las cabeceras mínimas requeridas. `Connection: close` le dice al servidor que cierre la conexión tras responder (esto dispara `eof_received`).
 - **❸** asyncio llama a este método automáticamente cuando la conexión TCP se establece. Guardamos el transport y enviamos la petición inmediatamente.
-- **❹** asyncio llama a este método cada vez que llegan datos del socket. No sabemos cuántos bytes llegarán de golpe, por eso acumulamos en un buffer.
+- **❹** asyncio llama a este método cada vez que llegan datos del socket. No sabemos cuántos bytes llegarán de golpe, por eso acumulamos en un buffer. **Aquí no se envía nada al mundo asíncrono todavía** — solo se guarda. El puente hacia `await` ocurre más tarde, en `eof_received`, cuando todos los datos han llegado y se llama `set_result()`.
+
+  > **Ejemplo real:** imagina que el servidor HTTP responde con 3 paquetes separados (la red los trocea así):
+  > ```
+  > Paquete 1 → data_received: b"HTTP/1.1 200 OK\r\nContent-Type: "
+  > Paquete 2 → data_received: b"text/html\r\n\r\n"
+  > Paquete 3 → data_received: b"<html>Hello</html>"
+  > ```
+  > Cada llamada añade su trozo al buffer. Cuando el servidor cierra la conexión:
+  > ```
+  > eof_received → set_result("HTTP/1.1 200 OK\r\n....<html>Hello</html>")
+  > ```
+  > Solo en ese momento se despierta quien estaba haciendo `await protocol.get_response()` y recibe la respuesta completa y ensamblada. Sin el buffer, perderías los paquetes 1 y 2.
 - **❺** asyncio llama a esto cuando el servidor cierra su extremo (EOF). En este momento tenemos la respuesta completa y completamos el future.
 - **❻** Si la conexión se pierde con error, propagamos la excepción al future para que `get_response()` la lance.
 
