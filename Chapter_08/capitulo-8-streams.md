@@ -1461,159 +1461,159 @@ Confirma que la gestió d'errors del `sensor_worker` funciona correctament — c
 
 **1.** ¿Qué diferencia existe entre `StreamReader`/`StreamWriter` y Transportes/Protocolos? *(una o más correctas)*
 - A) `StreamReader`/`StreamWriter` son más rápidos porque usan menos memoria
-- B) `StreamReader`/`StreamWriter` son la API de alto nivel, más simple y recomendada para aplicaciones normales
-- C) Transportes y Protocolos se basan en callbacks; `StreamReader`/`StreamWriter` son compatibles con `await`
+- **B) `StreamReader`/`StreamWriter` son la API de alto nivel, más simple y recomendada para aplicaciones normales**
+- **C) Transportes y Protocolos se basan en callbacks; `StreamReader`/`StreamWriter` son compatibles con `await`**
 - D) Transportes y Protocolos son obsoletos y no deben usarse nunca
 
 **2.** ¿Por qué es importante llamar `await writer.drain()` después de `writer.write(data)`? *(una o más correctas)*
 - A) Porque `write()` no envía datos — solo `drain()` los envía realmente
-- B) Porque si el buffer se llena, escribir sin `drain()` consume cada vez más memoria
-- C) Porque `drain()` cede el control al event loop, permitiendo que otras tareas se ejecuten
+- **B) Porque si el buffer se llena, escribir sin `drain()` consume cada vez más memoria**
+- **C) Porque `drain()` cede el control al event loop, permitiendo que otras tareas se ejecuten**
 - D) Porque sin `drain()`, los datos se envían en orden incorrecto
 
 **3.** ¿Qué devuelve `await asyncio.open_connection('host', port)`?
 - A) Un objeto `AbstractServer`
-- B) Una tupla `(StreamReader, StreamWriter)`
+- **B) Una tupla `(StreamReader, StreamWriter)`**
 - C) Un `Future` con la respuesta del servidor
 - D) Una instancia de `asyncio.Protocol`
 
 **4.** ¿Qué hace `eof_received()` en un protocolo? *(una o más correctas)*
 - A) Cierra automáticamente la conexión TCP
-- B) Se llama cuando el otro extremo cierra su lado de la conexión
-- C) Indica que no se recibirán más datos
+- **B) Se llama cuando el otro extremo cierra su lado de la conexión**
+- **C) Indica que no se recibirán más datos**
 - D) Se llama cuando se produce un error de red
 
 **5.** ¿Por qué se usa un `Future` en `HTTPGetClientProtocol` del Listing 8.1?
 - A) Para acelerar la transmisión de datos
-- B) Como puente entre el mundo de callbacks y el mundo de coroutines con `await`
+- **B) Como puente entre el mundo de callbacks y el mundo de coroutines con `await`**
 - C) Para almacenar los datos recibidos en el buffer
 - D) Porque `readline()` no está disponible en la API de protocolos
 
 **6.** ¿Qué es una `protocol_factory`? *(una o más correctas)*
 - A) Una clase que hereda de `asyncio.Protocol`
-- B) Una función que devuelve una nueva instancia del protocolo cada vez que se llama
+- **B) Una función que devuelve una nueva instancia del protocolo cada vez que se llama**
 - C) Un método interno de asyncio que gestiona conexiones TCP
-- D) asyncio la usa para poder crear múltiples instancias del protocolo si es necesario
+- **D) asyncio la usa para poder crear múltiples instancias del protocolo si es necesario**
 
 **7.** En el Listing 8.3, ¿qué ocurre cuando `stream_reader.readline()` devuelve `b''`? *(una o más correctas)*
 - A) El servidor ha enviado una línea vacía — el bucle continúa
 - B) Ha ocurrido un error de red — se lanza una excepción
-- C) Se ha alcanzado EOF — el servidor ha cerrado la conexión
-- D) El bucle `while` termina y el generador se agota
+- **C) Se ha alcanzado EOF — el servidor ha cerrado la conexión**
+- **D) El bucle `while` termina y el generador se agota**
 
 **8.** ¿Por qué `writer.close()` por sí solo no es suficiente? *(una o más correctas)*
 - A) Porque `close()` no cierra el socket TCP, solo el writer de Python
-- B) Porque puede haber datos en el buffer pendientes de enviar
-- C) `wait_closed()` espera a que el cierre sea completo y captura excepciones tardías
+- **B) Porque puede haber datos en el buffer pendientes de enviar**
+- **C) `wait_closed()` espera a que el cierre sea completo y captura excepciones tardías**
 - D) Porque `close()` es síncrono y bloquea el event loop
 
 **9.** ¿Qué hace `asyncio.start_server` cuando un cliente se conecta? *(una o más correctas)*
 - A) Crea un nuevo hilo para atender al cliente
-- B) Llama al `client_connected_cb` pasándole un `StreamReader` y `StreamWriter`
-- C) Si el callback es una coroutine, asyncio la envuelve automáticamente en una tarea
+- **B) Llama al `client_connected_cb` pasándole un `StreamReader` y `StreamWriter`**
+- **C) Si el callback es una coroutine, asyncio la envuelve automáticamente en una tarea**
 - D) Bloquea hasta que el cliente se desconecte
 
 **10.** ¿Por qué se usa `asyncio.wait_for(reader.readline(), 60)` en Listing 8.13? *(una o más correctas)*
 - A) Para limitar el tamaño de los mensajes a 60 bytes
-- B) Para implementar un timeout de inactividad de 60 segundos
-- C) Si el cliente no envía nada en 60 segundos, se lanza `TimeoutError` y se elimina al usuario
+- **B) Para implementar un timeout de inactividad de 60 segundos**
+- **C) Si el cliente no envía nada en 60 segundos, se lanza `TimeoutError` y se elimina al usuario**
 - D) Para leer exactamente 60 caracteres del cliente
 
 **11.** ¿Por qué en `_notify_all` se usan dos pasos para eliminar usuarios inactivos?
 - A) Para mejorar el rendimiento evitando llamadas innecesarias
-- B) Porque eliminar del diccionario mientras se itera lanza `RuntimeError`
+- **B) Porque eliminar del diccionario mientras se itera lanza `RuntimeError`**
 - C) Para poder notificar a los usuarios antes de eliminarlos
 - D) Porque `_remove_user` es asíncrona y no puede llamarse dentro del bucle for
 
 **12.** ¿Qué hace `tty.setcbreak(0)`? *(una o más correctas)*
 - A) Activa el modo de colores en el terminal
-- B) Los caracteres se envían al programa uno a uno sin esperar a Enter
+- **B) Los caracteres se envían al programa uno a uno sin esperar a Enter**
 - C) Desactiva el eco del terminal — el usuario no ve lo que escribe
-- D) Es necesario para que `read_line` funcione correctamente en el cliente de chat
+- **D) Es necesario para que `read_line` funcione correctamente en el cliente de chat**
 
 **13.** ¿Para qué sirve `connect_read_pipe` en el cliente de chat? *(una o más correctas)*
 - A) Para leer archivos del disco de forma asíncrona
-- B) Envuelve stdin en un stream asíncrono compatible con `await`
-- C) Sin esto, `input()` bloquearía el event loop entero
+- **B) Envuelve stdin en un stream asíncrono compatible con `await`**
+- **C) Sin esto, `input()` bloquearía el event loop entero**
 - D) Para conectar el teclado al servidor directamente
 
 **14.** ¿Por qué el cliente usa `asyncio.wait` con `FIRST_COMPLETED` en lugar de `gather`? *(una o más correctas)*
 - A) Porque `gather` no puede manejar más de una tarea
-- B) `gather` esperaría indefinidamente a `read_and_send` (bucle infinito) si el servidor cierra
-- C) `FIRST_COMPLETED` permite terminar limpiamente cuando cualquier tarea acaba
+- **B) `gather` esperaría indefinidamente a `read_and_send` (bucle infinito) si el servidor cierra**
+- **C) `FIRST_COMPLETED` permite terminar limpiamente cuando cualquier tarea acaba**
 - D) Porque `gather` lanza excepciones que no se pueden capturar
 
 **15.** ¿Qué ventaja tiene `deque(maxlen=n)` frente a una lista normal? *(una o más correctas)*
 - A) Es más rápida para acceso por índice
-- B) Descarta automáticamente el elemento más antiguo al superar `maxlen`
-- C) `list.pop(0)` es O(n); `deque` mantiene el límite en O(1)
+- **B) Descarta automáticamente el elemento más antiguo al superar `maxlen`**
+- **C) `list.pop(0)` es O(n); `deque` mantiene el límite en O(1)**
 - D) Permite almacenar más mensajes que una lista normal
 
 **16.** ¿Por qué se usa `read_line` en lugar de `readline()` con `setcbreak`? *(una o más correctas)*
 - A) Porque `readline()` es más lenta que `read_line`
-- B) Con `setcbreak`, los caracteres llegan uno a uno sin el `\n` que `readline()` necesita
-- C) `read_line` lee byte a byte y para cuando encuentra `\n`
+- **B) Con `setcbreak`, los caracteres llegan uno a uno sin el `\n` que `readline()` necesita**
+- **C) `read_line` lee byte a byte y para cuando encuentra `\n`**
 - D) Porque `readline()` no funciona con `StreamReader`
 
 **17.** ¿Cuál es la diferencia entre `asyncio.wait` y `asyncio.wait_for`? *(una o más correctas)*
-- A) `wait_for` aplica timeout a una única coroutine; `wait` espera un conjunto de tareas
-- B) `wait` admite `return_when` con modos como `FIRST_COMPLETED`
-- C) `wait_for` lanza `TimeoutError` si se supera el límite
+- **A) `wait_for` aplica timeout a una única coroutine; `wait` espera un conjunto de tareas**
+- **B) `wait` admite `return_when` con modos como `FIRST_COMPLETED`**
+- **C) `wait_for` lanza `TimeoutError` si se supera el límite**
 - D) `wait` y `wait_for` son intercambiables
 
 **18.** ¿Qué secuencia ANSI mueve el cursor a la esquina superior izquierda?
 - A) `\033[2K`
 - B) `\0337`
-- C) `\033[H`
+- **C) `\033[H`**
 - D) `\0338`
 
 **19.** ¿Qué hace el servidor de chat si recibe un comando diferente a `CONNECT`?
 - A) Ignora el mensaje y espera el siguiente
 - B) Reenvía el mensaje a todos los usuarios conectados
-- C) Registra el error y cierra la conexión inmediatamente
+- **C) Registra el error y cierra la conexión inmediatamente**
 - D) Devuelve un mensaje de error al cliente y espera un comando válido
 
 **20.** ¿Por qué el chat puede gestionar múltiples clientes con un solo hilo? *(una o más correctas)*
 - A) Porque Python tiene un GIL que optimiza el I/O concurrente
-- B) asyncio usa concurrencia cooperativa: las coroutines ceden el control en cada `await`
-- C) Mientras una coroutine espera I/O, el event loop atiende a otras
+- **B) asyncio usa concurrencia cooperativa: las coroutines ceden el control en cada `await`**
+- **C) Mientras una coroutine espera I/O, el event loop atiende a otras**
 - D) Porque los sockets son inherentemente thread-safe en Python
 
 **21.** ¿Para qué sirve `writer.get_extra_info('peername')` en `servidor_telemetria.py`? *(una o más correctas)*
 - A) Para obtener el nombre de host del sensor mediante DNS
-- B) Devuelve la IP y puerto del sensor conectado, útil para identificarlo en logs
+- **B) Devuelve la IP y puerto del sensor conectado, útil para identificarlo en logs**
 - C) Para verificar que la conexión es segura (SSL)
-- D) Sin él, los logs no distinguirían entre sensores diferentes
+- **D) Sin él, los logs no distinguirían entre sensores diferentes**
 
 **22.** ¿Qué problema evita el bloque `finally` en `servidor_telemetria.py`? *(una o más correctas)*
 - A) Evita que el servidor procese mensajes duplicados
-- B) Garantiza que el socket se cierra aunque ocurra una excepción
-- C) Sin `finally`, el puerto quedaría ocupado indefinidamente si el sensor falla
+- **B) Garantiza que el socket se cierra aunque ocurra una excepción**
+- **C) Sin `finally`, el puerto quedaría ocupado indefinidamente si el sensor falla**
 - D) Evita que el servidor se reinicie automáticamente
 
 **23.** Si dos sensores envían `"ALERTA"` al mismo tiempo, ¿el servidor responde correctamente? *(una o más correctas)*
 - A) No — el servidor solo puede procesar una alerta a la vez con un único hilo
-- B) Sí — cada sensor tiene su propia coroutine `handle_sensor` independiente
-- C) Sí — cuando una coroutine hace `await`, la otra puede ejecutarse
+- **B) Sí — cada sensor tiene su propia coroutine `handle_sensor` independiente**
+- **C) Sí — cuando una coroutine hace `await`, la otra puede ejecutarse**
 - D) Depende — solo si el servidor tiene más de un hilo activo
 
 **24.** ¿Por qué se usa `time.monotonic()` en `carregues_telemetria.py`? *(una o más correctas)*
 - A) Porque es más preciso que `time.time()` a nivel de nanosegundos
-- B) `monotonic()` nunca va hacia atrás — no se ve afectado por cambios de hora del sistema
-- C) `time.time()` podría dar duraciones negativas si el sistema sincroniza el reloj durante la prueba
+- **B) `monotonic()` nunca va hacia atrás — no se ve afectado por cambios de hora del sistema**
+- **C) `time.time()` podría dar duraciones negativas si el sistema sincroniza el reloj durante la prueba**
 - D) Porque `time.time()` no está disponible en asyncio
 
 **25.** ¿Es seguro modificar el diccionario `results` sin locks en `carregues_telemetria.py`? *(una o más correctas)*
 - A) No — siempre hay riesgo de condición de carrera con coroutines
-- B) Sí — asyncio usa un único hilo, nunca dos coroutines ejecutan código Python al mismo tiempo
+- **B) Sí — asyncio usa un único hilo, nunca dos coroutines ejecutan código Python al mismo tiempo**
 - C) Solo es seguro porque `+=` es una operación atómica en Python
-- D) Sí — las modificaciones ocurren cuando la coroutine tiene el control del event loop
+- **D) Sí — las modificaciones ocurren cuando la coroutine tiene el control del event loop**
 
 **26.** ¿Qué ocurre si se aumenta `MAX_CONNECTIONS` a 500? *(una o más correctas)*
 - A) El throughput escala linealmente — 500x más peticiones por segundo
-- B) El sistema operativo puede limitar los sockets abiertos (límite de file descriptors)
-- C) A partir de cierto punto, el servidor se convierte en el cuello de botella
-- D) El throughput total se estabiliza o baja porque cada conexión espera más tiempo
+- **B) El sistema operativo puede limitar los sockets abiertos (límite de file descriptors)**
+- **C) A partir de cierto punto, el servidor se convierte en el cuello de botella**
+- **D) El throughput total se estabiliza o baja porque cada conexión espera más tiempo**
 
 ---
 
