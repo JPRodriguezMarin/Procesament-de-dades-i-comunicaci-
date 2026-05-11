@@ -671,6 +671,7 @@ asyncio.run(main())
 
 | Término | Definición |
 |---|---|
+| **`ServerState`** | Clase que centraliza el estado compartido del servidor: la lista de writers de todos los clientes conectados. Al tenerlo en un objeto separado, varias conexiones concurrentes pueden acceder y modificar esa lista sin que el código se mezcle con la lógica de red |
 | **`start_server`** | Coroutine de asyncio que crea un servidor TCP y llama a un callback por cada cliente conectado |
 | **`AbstractServer`** | Objeto devuelto por `start_server`; representa el servidor en ejecución |
 | **`serve_forever()`** | Coroutine que mantiene el servidor activo hasta que se cancela o se cierra |
