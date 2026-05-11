@@ -372,6 +372,8 @@ asyncio.run(main())
 
 > **Comparación con Listing 8.1:** el mismo resultado con ~50% menos código. No hay que gestionar futures manualmente, no hay callbacks, no hay buffer propio. `open_connection` hace toda la fontanería por nosotros.
 
+> **Caso de uso real:** Un monitor de disponibilidad que comprueba cada minuto si varios servidores web responden. Con `open_connection` puedes lanzar 50 peticiones HTTP concurrentes en un solo hilo — cada una hace `await readline()` sin bloquear las demás. Si un servidor no responde, `asyncio.wait_for` lanza timeout y lo marcas como caído.
+
 ### Glosario — 8.3
 
 | Término | Definición |
@@ -436,6 +438,8 @@ asyncio.run(main())
 - `connect_read_pipe` conecta stdin (o cualquier fd de lectura) al protocolo, de modo que los datos de teclado fluyen hacia el `StreamReader`.
 - El resultado: `stdin_reader.readline()` es no bloqueante — mientras esperas la entrada, el event loop puede atender otras tareas.
 
+> **Caso de uso real:** Un gestor de descargas en terminal que muestra el progreso de varios archivos descargándose a la vez y, al mismo tiempo, acepta comandos del usuario (`pause`, `cancel`, `status`). Con stdin síncrono (`input()`), el programa se congelaría esperando que escribas. Con stdin asíncrono, las descargas siguen avanzando mientras espera tu comando.
+
 ---
 
 ### Listing 8.5 — Función `create_stdin_reader`
@@ -454,6 +458,8 @@ async def create_stdin_reader() -> StreamReader:
     await loop.connect_read_pipe(lambda: protocol, sys.stdin)
     return stream_reader
 ```
+
+> **Caso de uso real:** Esta función es la base de cualquier herramienta CLI interactiva construida con asyncio — un REPL asíncrono, un cliente de chat, un debugger de red. Se importa una vez y se reutiliza en cualquier proyecto que necesite leer del teclado sin bloquear el event loop.
 
 ---
 
@@ -503,6 +509,8 @@ def move_to_bottom_of_screen() -> int:
 | `\033[2K` | Borra toda la línea actual |
 | `\033[{n};0H` | Mueve cursor a fila `n`, columna 0 |
 
+> **Caso de uso real:** Un dashboard de monitorización en terminal que muestra en tiempo real el estado de varios servicios (CPU, memoria, red) en la mitad superior de la pantalla, mientras en la mitad inferior el operador puede escribir comandos. Las funciones ANSI permiten actualizar solo las líneas de arriba sin borrar el área de input del usuario.
+
 ---
 
 ### Listing 8.8 — Función `read_line`
@@ -523,6 +531,8 @@ async def read_line(stdin_reader: StreamReader) -> str:
 ```
 
 **¿Por qué no usar `readline()`?** En modo `setcbreak`, el terminal no procesa `\n` antes de enviar los caracteres. `readline()` nunca vería el terminador de línea. Leer carácter a carácter y parar en `\n` es la forma correcta.
+
+> **Caso de uso real:** Un formulario de login en terminal (usuario + contraseña) dentro de una aplicación asyncio. Al pedir la contraseña, el modo `setcbreak` ya está activo — necesitas `read_line` para capturar correctamente lo que escribe el usuario carácter a carácter antes del Enter, sin que el terminal lo procese por su cuenta.
 
 ---
 
@@ -550,6 +560,8 @@ class MessageStore:
 - `deque(maxlen=max_size)` descarta automáticamente el mensaje más antiguo cuando se supera el tamaño máximo, evitando que los mensajes se salgan de la zona visible.
 - `callback` es una coroutine asíncrona (`async def`) que recibe el deque de mensajes y los dibuja en pantalla.
 - El patrón "almacén + callback de actualización" es común en UIs asíncronas: separa estado de presentación.
+
+> **Caso de uso real:** Un visor de logs en vivo que muestra las últimas 20 líneas de un fichero de log en la parte superior del terminal. Cada vez que llega una línea nueva, `MessageStore.append()` la añade y llama automáticamente al callback que redibuja las 20 líneas. Las líneas más antiguas desaparecen solas gracias a `deque(maxlen=20)` — sin código extra.
 
 ### Glosario — 8.4
 
@@ -652,6 +664,8 @@ asyncio.run(main())
 - **❻** `start_server` crea el servidor. `async with server` garantiza que se cierre limpiamente. `serve_forever()` mantiene el bucle activo indefinidamente.
 
 > **Pruébalo:** Inicia el servidor y conecta múltiples clientes con `nc 127.0.0.1 8000` o `telnet 127.0.0.1 8000`. Escribe texto en uno y verás el eco. Conecta otro y verás el mensaje "New user connected!".
+
+> **Caso de uso real:** Un servidor de resultados deportivos en directo. Cada vez que llega un gol, el servidor llama a `_notify_all("Gol de España! 1-0\n")` y todos los clientes conectados (apps móviles, navegadores web, dashboards) reciben la actualización al instante. El contador de usuarios conectados en `_on_connect` funciona como el contador de espectadores en vivo.
 
 ### Glosario — 8.5
 
@@ -780,6 +794,8 @@ asyncio.run(main())
 - **❹** Usa `asyncio.wait_for(reader.readline(), 60)` para implementar el timeout de inactividad. Si el cliente no envía nada en 60 segundos, `wait_for` lanza `asyncio.TimeoutError`, se captura la excepción y se elimina al usuario.
 - **❺** Envía el mensaje a todos los usuarios. Para evitar modificar el diccionario mientras se itera sobre él (lo cual daría `RuntimeError`), los usuarios inactivos se acumulan en una lista y se eliminan después del bucle.
 
+> **Caso de uso real:** El backend de un soporte al cliente en tiempo real. Varios agentes de soporte conectados al servidor reciben los mensajes de los clientes. El timeout de 60 segundos desconecta automáticamente a los clientes que pierden la conexión sin avisar (cierre de pestaña, corte de red), liberando recursos del servidor sin intervención manual.
+
 ---
 
 ### Listing 8.14 — El cliente de chat
@@ -874,6 +890,8 @@ MissIslington: No, it's a false one!
 ```
 
 El chat funciona con **un solo hilo**, gracias a la concurrencia cooperativa de asyncio.
+
+> **Caso de uso real:** Una sala de chat para un equipo de desarrollo durante un incident de producción. Varios ingenieros se conectan desde sus terminales, coordinan la respuesta en tiempo real y el servidor los desconecta automáticamente si pierden la conexión. Todo el sistema corre en un solo proceso Python ligero — sin necesidad de Redis, WebSockets ni infraestructura extra.
 
 ### Glosario — 8.6
 
