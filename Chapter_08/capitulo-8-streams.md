@@ -1367,6 +1367,22 @@ A partir d'un cert nombre de connexions, el throughput s'estabilitza o baixa —
 
 ---
 
+### Preguntas — Exercicis de Telemetria
+
+**21.** En `servidor_telemetria.py`, ¿por qué se usa `writer.get_extra_info('peername')` y para qué sirve el valor que devuelve?
+
+**22.** En `servidor_telemetria.py`, el bloque `finally` ejecuta `writer.close()` y `await writer.wait_closed()` siempre, aunque haya una excepción. ¿Qué problema evita esto?
+
+**23.** En `servidor_telemetria.py`, si dos sensores envían `"ALERTA"` al mismo tiempo, ¿el servidor responde correctamente a los dos? ¿Por qué?
+
+**24.** En `carregues_telemetria.py`, ¿por qué se usa `time.monotonic()` en lugar de `time.time()` para medir la duración de la prueba?
+
+**25.** En `carregues_telemetria.py`, `results` es un diccionario compartido entre todas las coroutines de `sensor_worker`. ¿Es seguro modificarlo sin locks? ¿Por qué?
+
+**26.** En `carregues_telemetria.py`, si se aumenta `MAX_CONNECTIONS` de 10 a 500, ¿qué puede ocurrir y por qué el throughput no escala linealmente?
+
+---
+
 ### Respuestas
 
 **1.** `StreamReader`/`StreamWriter` son la API de **alto nivel**: más simple, menos código, recomendada para la mayoría de aplicaciones. Transportes y Protocolos son la API de **bajo nivel**: más control, basada en callbacks, adecuada para frameworks de red. Los streams se construyen sobre transportes/protocolos internamente.
@@ -1408,3 +1424,15 @@ A partir d'un cert nombre de connexions, el throughput s'estabilitza o baixa —
 **19.** El servidor registra el error con `logging.error` y cierra la conexión inmediatamente (`writer.close()` + `await writer.wait_closed()`). No añade al usuario a `_username_to_writer`.
 
 **20.** Porque asyncio usa **concurrencia cooperativa**: cuando una coroutine espera E/S (leer un mensaje, escribir una respuesta), cede el control al event loop con `await`. El event loop aprovecha ese momento para atender a otros clientes. Todo ocurre en un solo hilo de OS, pero múltiples operaciones de I/O progresan de forma intercalada.
+
+**21.** `get_extra_info('peername')` devuelve la dirección IP y puerto del sensor conectado, por ejemplo `('127.0.0.1', 52341)`. Se usa para identificar qué sensor está enviando cada dato en los logs. Sin él, los mensajes de `logging.info` no distinguirían entre sensores diferentes.
+
+**22.** Evita que el socket quede abierto indefinidamente si ocurre una excepción durante la lectura. Si no se cerrara en `finally`, el sistema operativo mantendría el puerto ocupado y el servidor perdería recursos con cada sensor que falle. `finally` garantiza el cierre pase lo que pase.
+
+**23.** Sí, correctamente. Cada sensor tiene su propia coroutine `handle_sensor` lanzada por `start_server`. Son independientes — cuando una hace `await reader.readline()`, cede el control y la otra puede ejecutarse. asyncio las atiende intercaladas en el mismo hilo sin que se bloqueen entre sí.
+
+**24.** `time.monotonic()` nunca va hacia atrás — no se ve afectado por cambios de hora del sistema (ajustes NTP, horario de verano). `time.time()` puede saltar si el sistema sincroniza el reloj durante la prueba, lo que daría duraciones negativas o incorrectas. Para medir intervalos, `monotonic()` es siempre la opción correcta.
+
+**25.** Sí, es seguro. asyncio usa un único hilo — nunca dos coroutines ejecutan código Python al mismo tiempo. Las modificaciones a `results['requests'] += 1` no son concurrentes realmente: ocurren cuando la coroutine tiene el control. No hay condiciones de carrera posibles con un solo hilo.
+
+**26.** Con 500 conexiones simultáneas pueden ocurrir dos cosas: (1) el sistema operativo limita el número de sockets abiertos (límite de file descriptors, típicamente 1024); (2) el servidor se convierte en el cuello de botella — no puede procesar 500 peticiones simultáneas más rápido de lo que su CPU y red permiten. A partir de cierto punto, añadir más conexiones solo genera más tiempo de espera por conexión, y el throughput total se estabiliza o baja.
